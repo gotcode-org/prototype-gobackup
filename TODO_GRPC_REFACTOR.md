@@ -26,6 +26,9 @@ This document outlines the roadmap for converting the GoBackup monolithic script
 - [ ] **gRPC Interceptors:** Build the middleware to extract the Bearer Token from incoming gRPC metadata, validate the hash, and inject the user's identity/role into the request Context.
 - [ ] **Action Logging:** Add secure audit logging (e.g., `[AUDIT] User 'jovens' triggered backup on kvm01`).
 
+- [ ] **Dynamic Configuration Management:** Implement gRPC endpoints (e.g., `gbctl add host`) to dynamically register new servers to be backed up without manually editing files.
+  - *Data Store Decision:* Transition from a monolithic `config.yaml` to either an embedded SQLite database (safest for concurrent daemon writes) or a `conf.d/` directory structure containing individual YAML files per host.
+
 ## Phase 3: The Thin Client (TUI)
 - [ ] **Authentication UX:** Create the `gobackup login --token <TOKEN>` command to save credentials to `~/.config/gobackup/auth.json`.
 - [ ] **Decouple Execution:** Strip all `os/exec` (tar/ssh) commands from the client. Route all actions through the gRPC client stubs.
