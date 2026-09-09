@@ -153,7 +153,7 @@ func RunSingleBackup(cfg Config, host HostConfig, ui tui.BackupUI) {
 	SendNotification(cfg.WebhookURL, 
 		fmt.Sprintf("🔄 Backup Started (%s)", host.Name),
 		fmt.Sprintf("Initiating tar pull natively for `%s`.", host.Name),
-		3447003, host.Name, targetFile)
+		3447003, host.Name, targetFile, ui)
 
 	startTime := time.Now()
 
@@ -176,7 +176,7 @@ func RunSingleBackup(cfg Config, host HostConfig, ui tui.BackupUI) {
 		SendNotification(cfg.WebhookURL,
 			fmt.Sprintf("❌ Backup Failed! (%s)", host.Name),
 			fmt.Sprintf("Backup fatally failed after %s (Exit Code: %d).\n\n**Error Details:**\n```text\n%v\n```", duration, exitCode, err),
-			15158332, host.Name, targetFile)
+			15158332, host.Name, targetFile, ui)
 
 		ui.Summary("   ❌ Backup fatally failed for %s (Exit Code %d): %v", host.Name, exitCode, err)
 		os.Remove(targetFile) 
@@ -192,13 +192,13 @@ func RunSingleBackup(cfg Config, host HostConfig, ui tui.BackupUI) {
 		SendNotification(cfg.WebhookURL,
 			fmt.Sprintf("⚠️ Backup Completed with Warnings (%s)", host.Name),
 			fmt.Sprintf("Archive finished in %s, but some active files changed or vanished during the backup process.\n\n**Statistics:**\n```text\nArchive Size: %s\n```", duration, sizeStr),
-			16766720, host.Name, targetFile)
+			16766720, host.Name, targetFile, ui)
 		ui.Summary("   ⚠️  Completed with warnings (files changed) for %s (%s)", host.Name, sizeStr)
 	} else {
 		SendNotification(cfg.WebhookURL,
 			fmt.Sprintf("✅ Backup Completed (%s)", host.Name),
 			fmt.Sprintf("tar archive finished successfully in %s.\n\n**Statistics:**\n```text\nArchive Size: %s\n```", duration, sizeStr),
-			3066993, host.Name, targetFile)
+			3066993, host.Name, targetFile, ui)
 		ui.Summary("   ✅ Success! Saved to %s (%s) in %s", targetFile, sizeStr, duration)
 	}
 	
@@ -245,7 +245,7 @@ func CleanupOldBackups(dir string, hosts []HostConfig, ui tui.BackupUI) {
 	}
 }
 
-func SendNotification(webhookURL, title, desc string, color int, hostName, targetFile string) {
+func SendNotification(webhookURL, title, desc string, color int, hostName, targetFile string, ui tui.BackupUI) {
 	if webhookURL == "" { return }
 	
 	payload := map[string]interface{}{
@@ -269,5 +269,18 @@ func SendNotification(webhookURL, title, desc string, color int, hostName, targe
 	req, _ := http.NewRequest("POST", webhookURL, bytes.NewBuffer(b))
 	req.Header.Set("Content-Type", "application/json")
 	client := &http.Client{}
-	client.Do(req)
+	resp, err := client.Do(req)
+	if err != nil {
+		if ui != nil { ui.Log("   ❌ Webhook HTTP Error: %v", err) }
+		return
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode >= 400 {
+		bodyBytes := make([]byte, 1024)
+		n, _ := resp.Body.Read(bodyBytes)
+		if ui != nil { ui.Log("   ❌ Webhook Rejected (HTTP %d): %s", resp.StatusCode, string(bodyBytes[:n])) }
+	} else {
+		if ui != nil { ui.Log("   ✅ Webhook Notification Sent") }
+	}
 }
