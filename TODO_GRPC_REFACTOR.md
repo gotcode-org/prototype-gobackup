@@ -28,6 +28,7 @@ This document outlines the roadmap for converting the GoBackup monolithic script
 
 - [ ] **Dynamic Configuration Management:** Implement gRPC endpoints (e.g., `gbctl add host`) to dynamically register new servers to be backed up without manually editing files.
   - *Data Store Decision:* Adopt the "SourceVault Philosophy". The absolute Source of Truth will be individual YAML files inside a `conf.d/` directory to guarantee they never corrupt and can be version-controlled. The daemon will simply parse these files and cache them in-memory for fast execution.
+  - *GitOps Integration:* Since the source of truth is a directory of YAML files, the daemon will optionally treat `conf.d/` as a Git repository. Adding a host via the CLI will automatically trigger a `git commit` and `git push` to back up the configuration to a remote Git server (SourceVault).
 
 ## Phase 3: The Thin Client (TUI)
 - [ ] **Authentication UX:** Create the `gobackup login --token <TOKEN>` command to save credentials to `~/.config/gobackup/auth.json`.
