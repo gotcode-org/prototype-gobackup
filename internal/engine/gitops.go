@@ -2,38 +2,84 @@ package engine
 
 import (
 	"log"
-	"os/exec"
+	"time"
+	"os"
+	"path/filepath"
+
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 )
 
-// GitOpsSync stages, commits, and pushes the configuration directory to the remote SourceVault server
+// GitOpsSync stages, commits, and pushes the configuration directory using pure Go
 func GitOpsSync(configDir string, commitMessage string) error {
 	log.Printf("🐙 GitOps: Syncing changes for %s", commitMessage)
 
-	// git add .
-	addCmd := exec.Command("git", "add", ".")
-	addCmd.Dir = configDir
-	if err := addCmd.Run(); err != nil {
+	// 1. Open the repository
+	r, err := git.PlainOpen(configDir)
+	if err != nil {
+		log.Printf("GitOps failed to open repo: %v", err)
+		return err
+	}
+
+	w, err := r.Worktree()
+	if err != nil {
+		return err
+	}
+
+	// 2. git add .
+	err = w.AddWithOptions(&git.AddOptions{All: true})
+	if err != nil {
 		log.Printf("GitOps add failed: %v", err)
 		return err
 	}
 
-	// git commit -m "..."
-	commitCmd := exec.Command("git", "commit", "-m", commitMessage)
-	commitCmd.Dir = configDir
-	if err := commitCmd.Run(); err != nil {
-		// Might fail if there are no changes, which is fine
+	// 3. git commit
+	commit, err := w.Commit(commitMessage, &git.CommitOptions{
+		Author: &object.Signature{
+			Name:  "GoBackup Daemon",
+			Email: "daemon@gobackup.local",
+			When:  time.Now(),
+		},
+	})
+	if err != nil {
 		log.Printf("GitOps commit (safe failure if no changes): %v", err)
-		return nil 
+		return nil
 	}
 
-	// git push
-	pushCmd := exec.Command("git", "push")
-	pushCmd.Dir = configDir
-	if err := pushCmd.Run(); err != nil {
+	obj, _ := r.CommitObject(commit)
+	log.Printf("GitOps committed: %s", obj.Hash.String())
+
+	// 4. Configure SSH Authentication
+	// go-git requires explicit auth configuration for SSH
+	var auth *ssh.PublicKeys
+	home, _ := os.UserHomeDir()
+	keyPaths := []string{
+		filepath.Join(home, ".ssh", "id_ed25519"),
+		filepath.Join(home, ".ssh", "id_rsa"),
+	}
+
+	for _, keyPath := range keyPaths {
+		if _, err := os.Stat(keyPath); err == nil {
+			auth, _ = ssh.NewPublicKeysFromFile("git", keyPath, "")
+			if auth != nil {
+				break
+			}
+		}
+	}
+
+	// 5. git push
+	pushOpts := &git.PushOptions{}
+	if auth != nil {
+		pushOpts.Auth = auth
+	}
+
+	err = r.Push(pushOpts)
+	if err != nil {
 		log.Printf("GitOps push failed: %v", err)
 		return err
 	}
 
-	log.Printf("🐙 GitOps: Successfully pushed configuration to SourceVault")
+	log.Printf("🐙 GitOps: Successfully pushed configuration to remote!")
 	return nil
 }
