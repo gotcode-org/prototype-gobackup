@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/go-git/go-git/v5"
+	gitconfig "github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 )
@@ -68,8 +69,11 @@ func GitOpsSync(configDir string, commitMessage string) error {
 		}
 	}
 
-	// 5. git push
-	pushOpts := &git.PushOptions{}
+	// 5. git push (Explicitly targeting the remote 'main' branch)
+	pushOpts := &git.PushOptions{
+		RemoteName: "origin",
+		RefSpecs:   []gitconfig.RefSpec{"refs/heads/main:refs/heads/main"},
+	}
 	if auth != nil {
 		pushOpts.Auth = auth
 	}
