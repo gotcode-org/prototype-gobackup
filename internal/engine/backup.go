@@ -91,6 +91,36 @@ func ListBackups(cfg Config, serverName string) {
 
 var GlobalBackupQueue sync.Mutex
 
+var (
+	StateMutex sync.Mutex
+	ActiveJob  string
+	QueuedJobs []string
+)
+
+func EnqueueJob(host string) {
+	StateMutex.Lock()
+	defer StateMutex.Unlock()
+	QueuedJobs = append(QueuedJobs, host)
+}
+
+func DequeueAndSetActive(host string) {
+	StateMutex.Lock()
+	defer StateMutex.Unlock()
+	for i, v := range QueuedJobs {
+		if v == host {
+			QueuedJobs = append(QueuedJobs[:i], QueuedJobs[i+1:]...)
+			break
+		}
+	}
+	ActiveJob = host
+}
+
+func ClearActive() {
+	StateMutex.Lock()
+	defer StateMutex.Unlock()
+	ActiveJob = ""
+}
+
 func RunBackups(cfg Config, ui tui.BackupUI) {
 	if err := os.MkdirAll(cfg.BackupDir, 0755); err != nil {
 		ui.Log("❌ Failed to create backup directory %s: %v", cfg.BackupDir, err)
@@ -112,8 +142,15 @@ func RunSingleBackup(cfg Config, host HostConfig, ui tui.BackupUI) {
 	ui.SetStatus(fmt.Sprintf("Queued: %s", host.Name), true)
 	ui.Log("⏳ Job for %s entered the global queue. Waiting for active jobs to finish...", host.Name)
 	
+	EnqueueJob(host.Name)
+
 	GlobalBackupQueue.Lock()
-	defer GlobalBackupQueue.Unlock()
+	DequeueAndSetActive(host.Name)
+
+	defer func() {
+		ClearActive()
+		GlobalBackupQueue.Unlock()
+	}()
 
 	if err := os.MkdirAll(cfg.BackupDir, 0755); err != nil {
 		ui.Log("❌ Failed to create backup directory %s: %v", cfg.BackupDir, err)

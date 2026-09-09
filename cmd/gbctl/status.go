@@ -1,0 +1,62 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"crypto/tls"
+	"strings"
+
+	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+
+	pb "gobackup/internal/grpc/pb"
+)
+
+var statusCmd = &cobra.Command{
+	Use:   "status",
+	Short: "Check the live status of the daemon and global backup queue",
+	Run: func(cmd *cobra.Command, args []string) {
+		cfg := LoadClientConfig()
+		if cfg.Token == "" {
+			log.Fatalf("❌ Not authenticated.")
+		}
+
+		opts := []grpc.DialOption{
+			grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})),
+			grpc.WithPerRPCCredentials(tokenAuth{token: cfg.Token}),
+		}
+		conn, err := grpc.Dial(cfg.ServerAddress, opts...)
+		if err != nil {
+			log.Fatalf("❌ Daemon is OFFLINE (Failed to connect: %v)", err)
+		}
+		defer conn.Close()
+		
+		client := pb.NewBackupServiceClient(conn)
+		resp, err := client.GetStatus(context.Background(), &pb.StatusRequest{})
+		if err != nil {
+			log.Fatalf("❌ RPC Error: %v", err)
+		}
+
+		fmt.Println("\n🟢 Daemon Status: ONLINE")
+		fmt.Println("-----------------------------------------------------")
+		
+		if resp.ActiveJob != "" {
+			fmt.Printf("🔥 Active Job: %s\n", resp.ActiveJob)
+		} else {
+			fmt.Println("💤 Active Job: None (Idle)")
+		}
+
+		if len(resp.QueuedJobs) > 0 {
+			fmt.Printf("⏳ Queued Jobs (%d): %s\n", len(resp.QueuedJobs), strings.Join(resp.QueuedJobs, ", "))
+		} else {
+			fmt.Println("⏳ Queued Jobs: 0")
+		}
+		fmt.Println()
+	},
+}
+
+func init() {
+	rootCmd.AddCommand(statusCmd)
+}

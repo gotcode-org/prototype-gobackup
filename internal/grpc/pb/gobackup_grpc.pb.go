@@ -21,9 +21,9 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	BackupService_StartBackup_FullMethodName  = "/gobackup.BackupService/StartBackup"
 	BackupService_WatchLogs_FullMethodName    = "/gobackup.BackupService/WatchLogs"
-	BackupService_GetStatus_FullMethodName    = "/gobackup.BackupService/GetStatus"
 	BackupService_ListHosts_FullMethodName    = "/gobackup.BackupService/ListHosts"
 	BackupService_ListBackups_FullMethodName  = "/gobackup.BackupService/ListBackups"
+	BackupService_GetStatus_FullMethodName    = "/gobackup.BackupService/GetStatus"
 	BackupService_PruneBackups_FullMethodName = "/gobackup.BackupService/PruneBackups"
 )
 
@@ -37,11 +37,10 @@ type BackupServiceClient interface {
 	StartBackup(ctx context.Context, in *BackupRequest, opts ...grpc.CallOption) (*BackupResponse, error)
 	// Streams real-time logs for active backups (TUI integration)
 	WatchLogs(ctx context.Context, in *WatchRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[LogChunk], error)
-	// Retrieves current running jobs and daemon status
-	GetStatus(ctx context.Context, in *StatusRequest, opts ...grpc.CallOption) (*StatusResponse, error)
 	// List all configured hosts
 	ListHosts(ctx context.Context, in *ListRequest, opts ...grpc.CallOption) (*ListResponse, error)
 	ListBackups(ctx context.Context, in *ListBackupsRequest, opts ...grpc.CallOption) (*ListBackupsResponse, error)
+	GetStatus(ctx context.Context, in *StatusRequest, opts ...grpc.CallOption) (*StatusResponse, error)
 	// Manually trigger retention cleanup
 	PruneBackups(ctx context.Context, in *PruneRequest, opts ...grpc.CallOption) (*PruneResponse, error)
 }
@@ -83,16 +82,6 @@ func (c *backupServiceClient) WatchLogs(ctx context.Context, in *WatchRequest, o
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type BackupService_WatchLogsClient = grpc.ServerStreamingClient[LogChunk]
 
-func (c *backupServiceClient) GetStatus(ctx context.Context, in *StatusRequest, opts ...grpc.CallOption) (*StatusResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(StatusResponse)
-	err := c.cc.Invoke(ctx, BackupService_GetStatus_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *backupServiceClient) ListHosts(ctx context.Context, in *ListRequest, opts ...grpc.CallOption) (*ListResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ListResponse)
@@ -107,6 +96,16 @@ func (c *backupServiceClient) ListBackups(ctx context.Context, in *ListBackupsRe
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ListBackupsResponse)
 	err := c.cc.Invoke(ctx, BackupService_ListBackups_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *backupServiceClient) GetStatus(ctx context.Context, in *StatusRequest, opts ...grpc.CallOption) (*StatusResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(StatusResponse)
+	err := c.cc.Invoke(ctx, BackupService_GetStatus_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -133,11 +132,10 @@ type BackupServiceServer interface {
 	StartBackup(context.Context, *BackupRequest) (*BackupResponse, error)
 	// Streams real-time logs for active backups (TUI integration)
 	WatchLogs(*WatchRequest, grpc.ServerStreamingServer[LogChunk]) error
-	// Retrieves current running jobs and daemon status
-	GetStatus(context.Context, *StatusRequest) (*StatusResponse, error)
 	// List all configured hosts
 	ListHosts(context.Context, *ListRequest) (*ListResponse, error)
 	ListBackups(context.Context, *ListBackupsRequest) (*ListBackupsResponse, error)
+	GetStatus(context.Context, *StatusRequest) (*StatusResponse, error)
 	// Manually trigger retention cleanup
 	PruneBackups(context.Context, *PruneRequest) (*PruneResponse, error)
 	mustEmbedUnimplementedBackupServiceServer()
@@ -156,14 +154,14 @@ func (UnimplementedBackupServiceServer) StartBackup(context.Context, *BackupRequ
 func (UnimplementedBackupServiceServer) WatchLogs(*WatchRequest, grpc.ServerStreamingServer[LogChunk]) error {
 	return status.Error(codes.Unimplemented, "method WatchLogs not implemented")
 }
-func (UnimplementedBackupServiceServer) GetStatus(context.Context, *StatusRequest) (*StatusResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method GetStatus not implemented")
-}
 func (UnimplementedBackupServiceServer) ListHosts(context.Context, *ListRequest) (*ListResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListHosts not implemented")
 }
 func (UnimplementedBackupServiceServer) ListBackups(context.Context, *ListBackupsRequest) (*ListBackupsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListBackups not implemented")
+}
+func (UnimplementedBackupServiceServer) GetStatus(context.Context, *StatusRequest) (*StatusResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetStatus not implemented")
 }
 func (UnimplementedBackupServiceServer) PruneBackups(context.Context, *PruneRequest) (*PruneResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method PruneBackups not implemented")
@@ -218,24 +216,6 @@ func _BackupService_WatchLogs_Handler(srv interface{}, stream grpc.ServerStream)
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type BackupService_WatchLogsServer = grpc.ServerStreamingServer[LogChunk]
 
-func _BackupService_GetStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(StatusRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(BackupServiceServer).GetStatus(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: BackupService_GetStatus_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BackupServiceServer).GetStatus(ctx, req.(*StatusRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _BackupService_ListHosts_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ListRequest)
 	if err := dec(in); err != nil {
@@ -272,6 +252,24 @@ func _BackupService_ListBackups_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BackupService_GetStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BackupServiceServer).GetStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BackupService_GetStatus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BackupServiceServer).GetStatus(ctx, req.(*StatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _BackupService_PruneBackups_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(PruneRequest)
 	if err := dec(in); err != nil {
@@ -302,16 +300,16 @@ var BackupService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _BackupService_StartBackup_Handler,
 		},
 		{
-			MethodName: "GetStatus",
-			Handler:    _BackupService_GetStatus_Handler,
-		},
-		{
 			MethodName: "ListHosts",
 			Handler:    _BackupService_ListHosts_Handler,
 		},
 		{
 			MethodName: "ListBackups",
 			Handler:    _BackupService_ListBackups_Handler,
+		},
+		{
+			MethodName: "GetStatus",
+			Handler:    _BackupService_GetStatus_Handler,
 		},
 		{
 			MethodName: "PruneBackups",

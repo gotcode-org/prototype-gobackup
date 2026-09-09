@@ -13,11 +13,11 @@ service BackupService {
     rpc WatchLogs (WatchRequest) returns (stream LogChunk);
 
     // Retrieves current running jobs and daemon status
-    rpc GetStatus (StatusRequest) returns (StatusResponse);
 
     // List all configured hosts
     rpc ListHosts (ListRequest) returns (ListResponse);
     rpc ListBackups (ListBackupsRequest) returns (ListBackupsResponse);
+    rpc GetStatus (StatusRequest) returns (StatusResponse);
     // Manually trigger retention cleanup
     rpc PruneBackups (PruneRequest) returns (PruneResponse);
 }
@@ -56,12 +56,7 @@ message LogChunk {
     bool spinning = 5;
 }
 
-message StatusRequest {}
 
-message StatusResponse {
-    int32 active_jobs = 1;
-    string uptime = 2;
-}
 
 message GenerateTokenRequest {
     string username = 1;
@@ -114,4 +109,11 @@ message BackupArchive {
 }
 message ListBackupsResponse {
     repeated BackupArchive archives = 1;
+}
+
+message StatusRequest {}
+message StatusResponse {
+    bool online = 1;
+    string active_job = 2;
+    repeated string queued_jobs = 3;
 }

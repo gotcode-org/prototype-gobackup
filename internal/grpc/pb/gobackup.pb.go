@@ -246,94 +246,6 @@ func (x *LogChunk) GetSpinning() bool {
 	return false
 }
 
-type StatusRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *StatusRequest) Reset() {
-	*x = StatusRequest{}
-	mi := &file_api_gobackup_proto_msgTypes[4]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *StatusRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*StatusRequest) ProtoMessage() {}
-
-func (x *StatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_gobackup_proto_msgTypes[4]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use StatusRequest.ProtoReflect.Descriptor instead.
-func (*StatusRequest) Descriptor() ([]byte, []int) {
-	return file_api_gobackup_proto_rawDescGZIP(), []int{4}
-}
-
-type StatusResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ActiveJobs    int32                  `protobuf:"varint,1,opt,name=active_jobs,json=activeJobs,proto3" json:"active_jobs,omitempty"`
-	Uptime        string                 `protobuf:"bytes,2,opt,name=uptime,proto3" json:"uptime,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *StatusResponse) Reset() {
-	*x = StatusResponse{}
-	mi := &file_api_gobackup_proto_msgTypes[5]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *StatusResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*StatusResponse) ProtoMessage() {}
-
-func (x *StatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_gobackup_proto_msgTypes[5]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use StatusResponse.ProtoReflect.Descriptor instead.
-func (*StatusResponse) Descriptor() ([]byte, []int) {
-	return file_api_gobackup_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *StatusResponse) GetActiveJobs() int32 {
-	if x != nil {
-		return x.ActiveJobs
-	}
-	return 0
-}
-
-func (x *StatusResponse) GetUptime() string {
-	if x != nil {
-		return x.Uptime
-	}
-	return ""
-}
-
 type GenerateTokenRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Username      string                 `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
@@ -344,7 +256,7 @@ type GenerateTokenRequest struct {
 
 func (x *GenerateTokenRequest) Reset() {
 	*x = GenerateTokenRequest{}
-	mi := &file_api_gobackup_proto_msgTypes[6]
+	mi := &file_api_gobackup_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -356,7 +268,7 @@ func (x *GenerateTokenRequest) String() string {
 func (*GenerateTokenRequest) ProtoMessage() {}
 
 func (x *GenerateTokenRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_gobackup_proto_msgTypes[6]
+	mi := &file_api_gobackup_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -369,7 +281,7 @@ func (x *GenerateTokenRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenerateTokenRequest.ProtoReflect.Descriptor instead.
 func (*GenerateTokenRequest) Descriptor() ([]byte, []int) {
-	return file_api_gobackup_proto_rawDescGZIP(), []int{6}
+	return file_api_gobackup_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GenerateTokenRequest) GetUsername() string {
@@ -395,7 +307,7 @@ type GenerateTokenResponse struct {
 
 func (x *GenerateTokenResponse) Reset() {
 	*x = GenerateTokenResponse{}
-	mi := &file_api_gobackup_proto_msgTypes[7]
+	mi := &file_api_gobackup_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -407,7 +319,7 @@ func (x *GenerateTokenResponse) String() string {
 func (*GenerateTokenResponse) ProtoMessage() {}
 
 func (x *GenerateTokenResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_gobackup_proto_msgTypes[7]
+	mi := &file_api_gobackup_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -420,7 +332,7 @@ func (x *GenerateTokenResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenerateTokenResponse.ProtoReflect.Descriptor instead.
 func (*GenerateTokenResponse) Descriptor() ([]byte, []int) {
-	return file_api_gobackup_proto_rawDescGZIP(), []int{7}
+	return file_api_gobackup_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GenerateTokenResponse) GetToken() string {
@@ -446,7 +358,7 @@ type AddHostRequest struct {
 
 func (x *AddHostRequest) Reset() {
 	*x = AddHostRequest{}
-	mi := &file_api_gobackup_proto_msgTypes[8]
+	mi := &file_api_gobackup_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -458,7 +370,7 @@ func (x *AddHostRequest) String() string {
 func (*AddHostRequest) ProtoMessage() {}
 
 func (x *AddHostRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_gobackup_proto_msgTypes[8]
+	mi := &file_api_gobackup_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -471,7 +383,7 @@ func (x *AddHostRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddHostRequest.ProtoReflect.Descriptor instead.
 func (*AddHostRequest) Descriptor() ([]byte, []int) {
-	return file_api_gobackup_proto_rawDescGZIP(), []int{8}
+	return file_api_gobackup_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *AddHostRequest) GetName() string {
@@ -540,7 +452,7 @@ type AddHostResponse struct {
 
 func (x *AddHostResponse) Reset() {
 	*x = AddHostResponse{}
-	mi := &file_api_gobackup_proto_msgTypes[9]
+	mi := &file_api_gobackup_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -552,7 +464,7 @@ func (x *AddHostResponse) String() string {
 func (*AddHostResponse) ProtoMessage() {}
 
 func (x *AddHostResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_gobackup_proto_msgTypes[9]
+	mi := &file_api_gobackup_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -565,7 +477,7 @@ func (x *AddHostResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddHostResponse.ProtoReflect.Descriptor instead.
 func (*AddHostResponse) Descriptor() ([]byte, []int) {
-	return file_api_gobackup_proto_rawDescGZIP(), []int{9}
+	return file_api_gobackup_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *AddHostResponse) GetSuccess() bool {
@@ -590,7 +502,7 @@ type ListRequest struct {
 
 func (x *ListRequest) Reset() {
 	*x = ListRequest{}
-	mi := &file_api_gobackup_proto_msgTypes[10]
+	mi := &file_api_gobackup_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -602,7 +514,7 @@ func (x *ListRequest) String() string {
 func (*ListRequest) ProtoMessage() {}
 
 func (x *ListRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_gobackup_proto_msgTypes[10]
+	mi := &file_api_gobackup_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -615,7 +527,7 @@ func (x *ListRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRequest.ProtoReflect.Descriptor instead.
 func (*ListRequest) Descriptor() ([]byte, []int) {
-	return file_api_gobackup_proto_rawDescGZIP(), []int{10}
+	return file_api_gobackup_proto_rawDescGZIP(), []int{8}
 }
 
 type HostInfo struct {
@@ -630,7 +542,7 @@ type HostInfo struct {
 
 func (x *HostInfo) Reset() {
 	*x = HostInfo{}
-	mi := &file_api_gobackup_proto_msgTypes[11]
+	mi := &file_api_gobackup_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -642,7 +554,7 @@ func (x *HostInfo) String() string {
 func (*HostInfo) ProtoMessage() {}
 
 func (x *HostInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_api_gobackup_proto_msgTypes[11]
+	mi := &file_api_gobackup_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -655,7 +567,7 @@ func (x *HostInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HostInfo.ProtoReflect.Descriptor instead.
 func (*HostInfo) Descriptor() ([]byte, []int) {
-	return file_api_gobackup_proto_rawDescGZIP(), []int{11}
+	return file_api_gobackup_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *HostInfo) GetName() string {
@@ -695,7 +607,7 @@ type ListResponse struct {
 
 func (x *ListResponse) Reset() {
 	*x = ListResponse{}
-	mi := &file_api_gobackup_proto_msgTypes[12]
+	mi := &file_api_gobackup_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -707,7 +619,7 @@ func (x *ListResponse) String() string {
 func (*ListResponse) ProtoMessage() {}
 
 func (x *ListResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_gobackup_proto_msgTypes[12]
+	mi := &file_api_gobackup_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -720,7 +632,7 @@ func (x *ListResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListResponse.ProtoReflect.Descriptor instead.
 func (*ListResponse) Descriptor() ([]byte, []int) {
-	return file_api_gobackup_proto_rawDescGZIP(), []int{12}
+	return file_api_gobackup_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ListResponse) GetHosts() []*HostInfo {
@@ -738,7 +650,7 @@ type PruneRequest struct {
 
 func (x *PruneRequest) Reset() {
 	*x = PruneRequest{}
-	mi := &file_api_gobackup_proto_msgTypes[13]
+	mi := &file_api_gobackup_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -750,7 +662,7 @@ func (x *PruneRequest) String() string {
 func (*PruneRequest) ProtoMessage() {}
 
 func (x *PruneRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_gobackup_proto_msgTypes[13]
+	mi := &file_api_gobackup_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -763,7 +675,7 @@ func (x *PruneRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PruneRequest.ProtoReflect.Descriptor instead.
 func (*PruneRequest) Descriptor() ([]byte, []int) {
-	return file_api_gobackup_proto_rawDescGZIP(), []int{13}
+	return file_api_gobackup_proto_rawDescGZIP(), []int{11}
 }
 
 type PruneResponse struct {
@@ -776,7 +688,7 @@ type PruneResponse struct {
 
 func (x *PruneResponse) Reset() {
 	*x = PruneResponse{}
-	mi := &file_api_gobackup_proto_msgTypes[14]
+	mi := &file_api_gobackup_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -788,7 +700,7 @@ func (x *PruneResponse) String() string {
 func (*PruneResponse) ProtoMessage() {}
 
 func (x *PruneResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_gobackup_proto_msgTypes[14]
+	mi := &file_api_gobackup_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -801,7 +713,7 @@ func (x *PruneResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PruneResponse.ProtoReflect.Descriptor instead.
 func (*PruneResponse) Descriptor() ([]byte, []int) {
-	return file_api_gobackup_proto_rawDescGZIP(), []int{14}
+	return file_api_gobackup_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *PruneResponse) GetSuccess() bool {
@@ -827,7 +739,7 @@ type ListBackupsRequest struct {
 
 func (x *ListBackupsRequest) Reset() {
 	*x = ListBackupsRequest{}
-	mi := &file_api_gobackup_proto_msgTypes[15]
+	mi := &file_api_gobackup_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -839,7 +751,7 @@ func (x *ListBackupsRequest) String() string {
 func (*ListBackupsRequest) ProtoMessage() {}
 
 func (x *ListBackupsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_gobackup_proto_msgTypes[15]
+	mi := &file_api_gobackup_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -852,7 +764,7 @@ func (x *ListBackupsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListBackupsRequest.ProtoReflect.Descriptor instead.
 func (*ListBackupsRequest) Descriptor() ([]byte, []int) {
-	return file_api_gobackup_proto_rawDescGZIP(), []int{15}
+	return file_api_gobackup_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ListBackupsRequest) GetTarget() string {
@@ -874,7 +786,7 @@ type BackupArchive struct {
 
 func (x *BackupArchive) Reset() {
 	*x = BackupArchive{}
-	mi := &file_api_gobackup_proto_msgTypes[16]
+	mi := &file_api_gobackup_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -886,7 +798,7 @@ func (x *BackupArchive) String() string {
 func (*BackupArchive) ProtoMessage() {}
 
 func (x *BackupArchive) ProtoReflect() protoreflect.Message {
-	mi := &file_api_gobackup_proto_msgTypes[16]
+	mi := &file_api_gobackup_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -899,7 +811,7 @@ func (x *BackupArchive) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BackupArchive.ProtoReflect.Descriptor instead.
 func (*BackupArchive) Descriptor() ([]byte, []int) {
-	return file_api_gobackup_proto_rawDescGZIP(), []int{16}
+	return file_api_gobackup_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *BackupArchive) GetHost() string {
@@ -939,7 +851,7 @@ type ListBackupsResponse struct {
 
 func (x *ListBackupsResponse) Reset() {
 	*x = ListBackupsResponse{}
-	mi := &file_api_gobackup_proto_msgTypes[17]
+	mi := &file_api_gobackup_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -951,7 +863,7 @@ func (x *ListBackupsResponse) String() string {
 func (*ListBackupsResponse) ProtoMessage() {}
 
 func (x *ListBackupsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_gobackup_proto_msgTypes[17]
+	mi := &file_api_gobackup_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -964,12 +876,108 @@ func (x *ListBackupsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListBackupsResponse.ProtoReflect.Descriptor instead.
 func (*ListBackupsResponse) Descriptor() ([]byte, []int) {
-	return file_api_gobackup_proto_rawDescGZIP(), []int{17}
+	return file_api_gobackup_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ListBackupsResponse) GetArchives() []*BackupArchive {
 	if x != nil {
 		return x.Archives
+	}
+	return nil
+}
+
+type StatusRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StatusRequest) Reset() {
+	*x = StatusRequest{}
+	mi := &file_api_gobackup_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StatusRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StatusRequest) ProtoMessage() {}
+
+func (x *StatusRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_gobackup_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StatusRequest.ProtoReflect.Descriptor instead.
+func (*StatusRequest) Descriptor() ([]byte, []int) {
+	return file_api_gobackup_proto_rawDescGZIP(), []int{16}
+}
+
+type StatusResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Online        bool                   `protobuf:"varint,1,opt,name=online,proto3" json:"online,omitempty"`
+	ActiveJob     string                 `protobuf:"bytes,2,opt,name=active_job,json=activeJob,proto3" json:"active_job,omitempty"`
+	QueuedJobs    []string               `protobuf:"bytes,3,rep,name=queued_jobs,json=queuedJobs,proto3" json:"queued_jobs,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StatusResponse) Reset() {
+	*x = StatusResponse{}
+	mi := &file_api_gobackup_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StatusResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StatusResponse) ProtoMessage() {}
+
+func (x *StatusResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_gobackup_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StatusResponse.ProtoReflect.Descriptor instead.
+func (*StatusResponse) Descriptor() ([]byte, []int) {
+	return file_api_gobackup_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *StatusResponse) GetOnline() bool {
+	if x != nil {
+		return x.Online
+	}
+	return false
+}
+
+func (x *StatusResponse) GetActiveJob() string {
+	if x != nil {
+		return x.ActiveJob
+	}
+	return ""
+}
+
+func (x *StatusResponse) GetQueuedJobs() []string {
+	if x != nil {
+		return x.QueuedJobs
 	}
 	return nil
 }
@@ -993,12 +1001,7 @@ const file_api_gobackup_proto_rawDesc = "" +
 	"is_summary\x18\x02 \x01(\bR\tisSummary\x12\x1b\n" +
 	"\thost_name\x18\x03 \x01(\tR\bhostName\x12\x1b\n" +
 	"\tis_status\x18\x04 \x01(\bR\bisStatus\x12\x1a\n" +
-	"\bspinning\x18\x05 \x01(\bR\bspinning\"\x0f\n" +
-	"\rStatusRequest\"I\n" +
-	"\x0eStatusResponse\x12\x1f\n" +
-	"\vactive_jobs\x18\x01 \x01(\x05R\n" +
-	"activeJobs\x12\x16\n" +
-	"\x06uptime\x18\x02 \x01(\tR\x06uptime\"F\n" +
+	"\bspinning\x18\x05 \x01(\bR\bspinning\"F\n" +
 	"\x14GenerateTokenRequest\x12\x1a\n" +
 	"\busername\x18\x01 \x01(\tR\busername\x12\x12\n" +
 	"\x04role\x18\x02 \x01(\tR\x04role\"-\n" +
@@ -1036,13 +1039,20 @@ const file_api_gobackup_proto_rawDesc = "" +
 	"\x04size\x18\x03 \x01(\x03R\x04size\x12\x1a\n" +
 	"\bmodified\x18\x04 \x01(\tR\bmodified\"J\n" +
 	"\x13ListBackupsResponse\x123\n" +
-	"\barchives\x18\x01 \x03(\v2\x17.gobackup.BackupArchiveR\barchives2\x95\x03\n" +
+	"\barchives\x18\x01 \x03(\v2\x17.gobackup.BackupArchiveR\barchives\"\x0f\n" +
+	"\rStatusRequest\"h\n" +
+	"\x0eStatusResponse\x12\x16\n" +
+	"\x06online\x18\x01 \x01(\bR\x06online\x12\x1d\n" +
+	"\n" +
+	"active_job\x18\x02 \x01(\tR\tactiveJob\x12\x1f\n" +
+	"\vqueued_jobs\x18\x03 \x03(\tR\n" +
+	"queuedJobs2\x95\x03\n" +
 	"\rBackupService\x12@\n" +
 	"\vStartBackup\x12\x17.gobackup.BackupRequest\x1a\x18.gobackup.BackupResponse\x129\n" +
-	"\tWatchLogs\x12\x16.gobackup.WatchRequest\x1a\x12.gobackup.LogChunk0\x01\x12>\n" +
-	"\tGetStatus\x12\x17.gobackup.StatusRequest\x1a\x18.gobackup.StatusResponse\x12:\n" +
+	"\tWatchLogs\x12\x16.gobackup.WatchRequest\x1a\x12.gobackup.LogChunk0\x01\x12:\n" +
 	"\tListHosts\x12\x15.gobackup.ListRequest\x1a\x16.gobackup.ListResponse\x12J\n" +
-	"\vListBackups\x12\x1c.gobackup.ListBackupsRequest\x1a\x1d.gobackup.ListBackupsResponse\x12?\n" +
+	"\vListBackups\x12\x1c.gobackup.ListBackupsRequest\x1a\x1d.gobackup.ListBackupsResponse\x12>\n" +
+	"\tGetStatus\x12\x17.gobackup.StatusRequest\x1a\x18.gobackup.StatusResponse\x12?\n" +
 	"\fPruneBackups\x12\x16.gobackup.PruneRequest\x1a\x17.gobackup.PruneResponse2\xa0\x01\n" +
 	"\fAdminService\x12P\n" +
 	"\rGenerateToken\x12\x1e.gobackup.GenerateTokenRequest\x1a\x1f.gobackup.GenerateTokenResponse\x12>\n" +
@@ -1066,40 +1076,40 @@ var file_api_gobackup_proto_goTypes = []any{
 	(*BackupResponse)(nil),        // 1: gobackup.BackupResponse
 	(*WatchRequest)(nil),          // 2: gobackup.WatchRequest
 	(*LogChunk)(nil),              // 3: gobackup.LogChunk
-	(*StatusRequest)(nil),         // 4: gobackup.StatusRequest
-	(*StatusResponse)(nil),        // 5: gobackup.StatusResponse
-	(*GenerateTokenRequest)(nil),  // 6: gobackup.GenerateTokenRequest
-	(*GenerateTokenResponse)(nil), // 7: gobackup.GenerateTokenResponse
-	(*AddHostRequest)(nil),        // 8: gobackup.AddHostRequest
-	(*AddHostResponse)(nil),       // 9: gobackup.AddHostResponse
-	(*ListRequest)(nil),           // 10: gobackup.ListRequest
-	(*HostInfo)(nil),              // 11: gobackup.HostInfo
-	(*ListResponse)(nil),          // 12: gobackup.ListResponse
-	(*PruneRequest)(nil),          // 13: gobackup.PruneRequest
-	(*PruneResponse)(nil),         // 14: gobackup.PruneResponse
-	(*ListBackupsRequest)(nil),    // 15: gobackup.ListBackupsRequest
-	(*BackupArchive)(nil),         // 16: gobackup.BackupArchive
-	(*ListBackupsResponse)(nil),   // 17: gobackup.ListBackupsResponse
+	(*GenerateTokenRequest)(nil),  // 4: gobackup.GenerateTokenRequest
+	(*GenerateTokenResponse)(nil), // 5: gobackup.GenerateTokenResponse
+	(*AddHostRequest)(nil),        // 6: gobackup.AddHostRequest
+	(*AddHostResponse)(nil),       // 7: gobackup.AddHostResponse
+	(*ListRequest)(nil),           // 8: gobackup.ListRequest
+	(*HostInfo)(nil),              // 9: gobackup.HostInfo
+	(*ListResponse)(nil),          // 10: gobackup.ListResponse
+	(*PruneRequest)(nil),          // 11: gobackup.PruneRequest
+	(*PruneResponse)(nil),         // 12: gobackup.PruneResponse
+	(*ListBackupsRequest)(nil),    // 13: gobackup.ListBackupsRequest
+	(*BackupArchive)(nil),         // 14: gobackup.BackupArchive
+	(*ListBackupsResponse)(nil),   // 15: gobackup.ListBackupsResponse
+	(*StatusRequest)(nil),         // 16: gobackup.StatusRequest
+	(*StatusResponse)(nil),        // 17: gobackup.StatusResponse
 }
 var file_api_gobackup_proto_depIdxs = []int32{
-	11, // 0: gobackup.ListResponse.hosts:type_name -> gobackup.HostInfo
-	16, // 1: gobackup.ListBackupsResponse.archives:type_name -> gobackup.BackupArchive
+	9,  // 0: gobackup.ListResponse.hosts:type_name -> gobackup.HostInfo
+	14, // 1: gobackup.ListBackupsResponse.archives:type_name -> gobackup.BackupArchive
 	0,  // 2: gobackup.BackupService.StartBackup:input_type -> gobackup.BackupRequest
 	2,  // 3: gobackup.BackupService.WatchLogs:input_type -> gobackup.WatchRequest
-	4,  // 4: gobackup.BackupService.GetStatus:input_type -> gobackup.StatusRequest
-	10, // 5: gobackup.BackupService.ListHosts:input_type -> gobackup.ListRequest
-	15, // 6: gobackup.BackupService.ListBackups:input_type -> gobackup.ListBackupsRequest
-	13, // 7: gobackup.BackupService.PruneBackups:input_type -> gobackup.PruneRequest
-	6,  // 8: gobackup.AdminService.GenerateToken:input_type -> gobackup.GenerateTokenRequest
-	8,  // 9: gobackup.AdminService.AddHost:input_type -> gobackup.AddHostRequest
+	8,  // 4: gobackup.BackupService.ListHosts:input_type -> gobackup.ListRequest
+	13, // 5: gobackup.BackupService.ListBackups:input_type -> gobackup.ListBackupsRequest
+	16, // 6: gobackup.BackupService.GetStatus:input_type -> gobackup.StatusRequest
+	11, // 7: gobackup.BackupService.PruneBackups:input_type -> gobackup.PruneRequest
+	4,  // 8: gobackup.AdminService.GenerateToken:input_type -> gobackup.GenerateTokenRequest
+	6,  // 9: gobackup.AdminService.AddHost:input_type -> gobackup.AddHostRequest
 	1,  // 10: gobackup.BackupService.StartBackup:output_type -> gobackup.BackupResponse
 	3,  // 11: gobackup.BackupService.WatchLogs:output_type -> gobackup.LogChunk
-	5,  // 12: gobackup.BackupService.GetStatus:output_type -> gobackup.StatusResponse
-	12, // 13: gobackup.BackupService.ListHosts:output_type -> gobackup.ListResponse
-	17, // 14: gobackup.BackupService.ListBackups:output_type -> gobackup.ListBackupsResponse
-	14, // 15: gobackup.BackupService.PruneBackups:output_type -> gobackup.PruneResponse
-	7,  // 16: gobackup.AdminService.GenerateToken:output_type -> gobackup.GenerateTokenResponse
-	9,  // 17: gobackup.AdminService.AddHost:output_type -> gobackup.AddHostResponse
+	10, // 12: gobackup.BackupService.ListHosts:output_type -> gobackup.ListResponse
+	15, // 13: gobackup.BackupService.ListBackups:output_type -> gobackup.ListBackupsResponse
+	17, // 14: gobackup.BackupService.GetStatus:output_type -> gobackup.StatusResponse
+	12, // 15: gobackup.BackupService.PruneBackups:output_type -> gobackup.PruneResponse
+	5,  // 16: gobackup.AdminService.GenerateToken:output_type -> gobackup.GenerateTokenResponse
+	7,  // 17: gobackup.AdminService.AddHost:output_type -> gobackup.AddHostResponse
 	10, // [10:18] is the sub-list for method output_type
 	2,  // [2:10] is the sub-list for method input_type
 	2,  // [2:2] is the sub-list for extension type_name

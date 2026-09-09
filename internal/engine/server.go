@@ -136,12 +136,7 @@ func (s *Server) WatchLogs(req *pb.WatchRequest, stream pb.BackupService_WatchLo
 	return nil
 }
 
-func (s *Server) GetStatus(ctx context.Context, req *pb.StatusRequest) (*pb.StatusResponse, error) {
-	return &pb.StatusResponse{
-		ActiveJobs: 0,
-		Uptime:     "Just started",
-	}, nil
-}
+
 
 // --- AdminService Implementation ---
 
@@ -262,4 +257,14 @@ func (s *Server) ListBackups(ctx context.Context, req *pb.ListBackupsRequest) (*
 		}
 	}
 	return &resp, nil
+}
+
+func (s *Server) GetStatus(ctx context.Context, req *pb.StatusRequest) (*pb.StatusResponse, error) {
+	StateMutex.Lock()
+	defer StateMutex.Unlock()
+	return &pb.StatusResponse{
+		Online:     true,
+		ActiveJob:  ActiveJob,
+		QueuedJobs: QueuedJobs,
+	}, nil
 }
