@@ -4,8 +4,8 @@ This document outlines the roadmap for converting the GoBackup monolithic script
 
 ## Phase 0: Standard Go Project Restructuring
 - [ ] **Directory Layout:** Reorganize the monolithic codebase into the standard Go project layout.
-  - `cmd/server/`: Entrypoint for the background daemon.
-  - `cmd/client/`: Entrypoint for the thin CLI/TUI client.
+  - `cmd/gobackupd/`: Entrypoint for the background daemon (Server).
+  - `cmd/gobackup/` (or `gbctl/`): Entrypoint for the thin CLI/TUI client.
   - `internal/engine/`: Core business logic (cron scheduling, auth, tar/ssh execution).
   - `internal/tui/`: Bubbletea/Tview presentation logic.
   - `internal/grpc/`: Protobuf generated code and client/server interceptors.
