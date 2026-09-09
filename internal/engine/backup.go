@@ -249,15 +249,21 @@ func SendNotification(webhookURL, title, desc string, color int, hostName, targe
 	if webhookURL == "" { return }
 	
 	payload := map[string]interface{}{
-		"title":       title,
-		"description": desc,
-		"color":       color,
-		"fields": [][]interface{}{
-			{"Backup Server", "GoBackup-Daemon", true},
-			{"Remote Target", hostName, true},
-			{"Destination", targetFile, false},
+		"embeds": []map[string]interface{}{
+			{
+				"title":       title,
+				"description": desc,
+				"color":       color,
+				"fields": []map[string]interface{}{
+					{"name": "Backup Server", "value": "GoBackup Daemon", "inline": true},
+					{"name": "Remote Target", "value": hostName, "inline": true},
+					{"name": "Destination", "value": targetFile, "inline": false},
+				},
+				"footer": map[string]string{
+					"text": "GoBackup Automated Task",
+				},
+			},
 		},
-		"footer": "GoBackup Automated Task",
 	}
 	b, _ := json.Marshal(payload)
 	req, _ := http.NewRequest("POST", webhookURL, bytes.NewBuffer(b))
