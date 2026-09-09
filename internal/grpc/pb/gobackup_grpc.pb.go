@@ -212,6 +212,7 @@ var BackupService_ServiceDesc = grpc.ServiceDesc{
 
 const (
 	AdminService_GenerateToken_FullMethodName = "/gobackup.AdminService/GenerateToken"
+	AdminService_AddHost_FullMethodName       = "/gobackup.AdminService/AddHost"
 )
 
 // AdminServiceClient is the client API for AdminService service.
@@ -222,6 +223,8 @@ const (
 type AdminServiceClient interface {
 	// Requires Local Socket God-Mode to generate auth tokens
 	GenerateToken(ctx context.Context, in *GenerateTokenRequest, opts ...grpc.CallOption) (*GenerateTokenResponse, error)
+	// Dynamically adds a new host configuration and triggers GitOps sync
+	AddHost(ctx context.Context, in *AddHostRequest, opts ...grpc.CallOption) (*AddHostResponse, error)
 }
 
 type adminServiceClient struct {
@@ -242,6 +245,16 @@ func (c *adminServiceClient) GenerateToken(ctx context.Context, in *GenerateToke
 	return out, nil
 }
 
+func (c *adminServiceClient) AddHost(ctx context.Context, in *AddHostRequest, opts ...grpc.CallOption) (*AddHostResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AddHostResponse)
+	err := c.cc.Invoke(ctx, AdminService_AddHost_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AdminServiceServer is the server API for AdminService service.
 // All implementations must embed UnimplementedAdminServiceServer
 // for forward compatibility.
@@ -250,6 +263,8 @@ func (c *adminServiceClient) GenerateToken(ctx context.Context, in *GenerateToke
 type AdminServiceServer interface {
 	// Requires Local Socket God-Mode to generate auth tokens
 	GenerateToken(context.Context, *GenerateTokenRequest) (*GenerateTokenResponse, error)
+	// Dynamically adds a new host configuration and triggers GitOps sync
+	AddHost(context.Context, *AddHostRequest) (*AddHostResponse, error)
 	mustEmbedUnimplementedAdminServiceServer()
 }
 
@@ -262,6 +277,9 @@ type UnimplementedAdminServiceServer struct{}
 
 func (UnimplementedAdminServiceServer) GenerateToken(context.Context, *GenerateTokenRequest) (*GenerateTokenResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GenerateToken not implemented")
+}
+func (UnimplementedAdminServiceServer) AddHost(context.Context, *AddHostRequest) (*AddHostResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method AddHost not implemented")
 }
 func (UnimplementedAdminServiceServer) mustEmbedUnimplementedAdminServiceServer() {}
 func (UnimplementedAdminServiceServer) testEmbeddedByValue()                      {}
@@ -302,6 +320,24 @@ func _AdminService_GenerateToken_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AdminService_AddHost_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AddHostRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).AddHost(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_AddHost_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).AddHost(ctx, req.(*AddHostRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AdminService_ServiceDesc is the grpc.ServiceDesc for AdminService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -312,6 +348,10 @@ var AdminService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GenerateToken",
 			Handler:    _AdminService_GenerateToken_Handler,
+		},
+		{
+			MethodName: "AddHost",
+			Handler:    _AdminService_AddHost_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

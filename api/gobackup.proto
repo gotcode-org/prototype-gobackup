@@ -20,6 +20,9 @@ service BackupService {
 service AdminService {
     // Requires Local Socket God-Mode to generate auth tokens
     rpc GenerateToken (GenerateTokenRequest) returns (GenerateTokenResponse);
+    
+    // Dynamically adds a new host configuration and triggers GitOps sync
+    rpc AddHost (AddHostRequest) returns (AddHostResponse);
 }
 
 // --- Messages ---
@@ -59,4 +62,20 @@ message GenerateTokenRequest {
 
 message GenerateTokenResponse {
     string token = 1;
+}
+
+message AddHostRequest {
+    string name = 1;
+    string group = 2;
+    string address = 3;
+    int32 port = 4;
+    bool use_sudo = 5;
+    int32 retention_count = 6;
+    repeated string paths = 7;
+    string schedule = 8;
+}
+
+message AddHostResponse {
+    bool success = 1;
+    string message = 2;
 }

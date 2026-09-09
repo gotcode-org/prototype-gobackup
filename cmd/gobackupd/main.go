@@ -31,7 +31,7 @@ var rootCmd = &cobra.Command{
 		defer scheduler.Stop()
 
 		// Boot up the gRPC Server
-		srv := engine.NewServer(db)
+		srv := engine.NewServer(db, scheduler)
 		if err := srv.Start(port); err != nil {
 			log.Fatalf("Daemon crashed: %v", err)
 		}

@@ -16,11 +16,12 @@ import (
 type Server struct {
 	pb.UnimplementedBackupServiceServer
 	pb.UnimplementedAdminServiceServer
-	db *DB
+	db        *DB
+	scheduler *Scheduler
 }
 
-func NewServer(db *DB) *Server {
-	return &Server{db: db}
+func NewServer(db *DB, scheduler *Scheduler) *Server {
+	return &Server{db: db, scheduler: scheduler}
 }
 
 // Start listens on the given TCP port and a local Unix socket, serving gRPC requests
@@ -97,5 +98,41 @@ func (s *Server) GenerateToken(ctx context.Context, req *pb.GenerateTokenRequest
 
 	return &pb.GenerateTokenResponse{
 		Token: rawToken,
+	}, nil
+}
+
+func (s *Server) AddHost(ctx context.Context, req *pb.AddHostRequest) (*pb.AddHostResponse, error) {
+	log.Printf("Received AddHost request for %s", req.Name)
+
+	host := HostConfig{
+		Name:           req.Name,
+		Group:          req.Group,
+		Address:        req.Address,
+		Port:           int(req.Port),
+		UseSudo:        req.UseSudo,
+		RetentionCount: int(req.RetentionCount),
+		Paths:          req.Paths,
+		Schedule:       req.Schedule,
+	}
+
+	if err := WriteHostConfig(host); err != nil {
+		return nil, fmt.Errorf("failed to write YAML: %v", err)
+	}
+
+	if err := GitOpsSync("conf.d", "chore: add backup host " + req.Name); err != nil {
+		log.Printf("GitOps sync failed (ignoring for now): %v", err)
+	}
+
+	// Hot reload the scheduler!
+	if s.scheduler != nil {
+		s.scheduler.Stop()
+		cfg := LoadConfig("config.yaml")
+		s.scheduler = NewScheduler(cfg)
+		s.scheduler.Start()
+	}
+
+	return &pb.AddHostResponse{
+		Success: true,
+		Message: "Host added and GitOps sync triggered successfully",
 	}, nil
 }
