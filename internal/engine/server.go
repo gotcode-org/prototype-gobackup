@@ -8,6 +8,7 @@ import (
 	"os"
 	
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	
 	pb "gobackup/internal/grpc/pb"
 )
@@ -25,7 +26,7 @@ func NewServer(db *DB, scheduler *Scheduler) *Server {
 }
 
 // Start listens on the given TCP port and a local Unix socket, serving gRPC requests
-func (s *Server) Start(port int) error {
+func (s *Server) Start(port int, creds credentials.TransportCredentials) error {
 	tcpAddr := fmt.Sprintf(":%d", port)
 	tcpLis, err := net.Listen("tcp", tcpAddr)
 	if err != nil {
@@ -39,11 +40,17 @@ func (s *Server) Start(port int) error {
 		return fmt.Errorf("failed to listen on Unix Socket: %w", err)
 	}
 
-	// Apply Interceptors for SQLite Token Auth and God-Mode Bypass
-	grpcServer := grpc.NewServer(
-		grpc.UnaryInterceptor(AuthInterceptor(s.db)),
-		grpc.StreamInterceptor(StreamAuthInterceptor(s.db)),
-	)
+	// Apply Interceptors and TLS
+	var opts []grpc.ServerOption
+	opts = append(opts, grpc.UnaryInterceptor(AuthInterceptor(s.db)))
+	opts = append(opts, grpc.StreamInterceptor(StreamAuthInterceptor(s.db)))
+	
+	// Only apply TLS to the TCP listener if credentials are provided
+	if creds != nil {
+		opts = append(opts, grpc.Creds(creds))
+	}
+
+	grpcServer := grpc.NewServer(opts...)
 	
 	// Register both services
 	pb.RegisterBackupServiceServer(grpcServer, s)

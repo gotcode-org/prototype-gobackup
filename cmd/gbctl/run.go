@@ -9,7 +9,8 @@ import (
 
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/credentials"
+	"crypto/tls"
 
 	pb "gobackup/internal/grpc/pb"
 	"gobackup/internal/tui"
@@ -41,7 +42,8 @@ var runCmd = &cobra.Command{
 
 		// Connect to gRPC server
 		opts := []grpc.DialOption{
-			grpc.WithTransportCredentials(insecure.NewCredentials()),
+			// Connect using TLS. Skip strict cert validation to easily support auto-generated self-signed certs.
+			grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})),
 			grpc.WithPerRPCCredentials(tokenAuth{token: cfg.Token}),
 		}
 		conn, err := grpc.Dial(cfg.ServerAddress, opts...)

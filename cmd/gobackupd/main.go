@@ -30,9 +30,15 @@ var rootCmd = &cobra.Command{
 		scheduler.Start()
 		defer scheduler.Stop()
 
-		// Boot up the gRPC Server
+		// Load or generate TLS certificates for encryption
+		tlsCreds, err := engine.LoadOrGenerateTLS("server.crt", "server.key")
+		if err != nil {
+			log.Fatalf("Failed to initialize TLS: %v", err)
+		}
+
+		// Boot up the gRPC Server with TLS
 		srv := engine.NewServer(db, scheduler)
-		if err := srv.Start(port); err != nil {
+		if err := srv.Start(port, tlsCreds); err != nil {
 			log.Fatalf("Daemon crashed: %v", err)
 		}
 	},
