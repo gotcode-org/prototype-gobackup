@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"time"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
@@ -95,6 +96,9 @@ var runCmd = &cobra.Command{
 				if chunk.IsSummary {
 					ui.Summary(chunk.Text)
 					ui.SetStatus(fmt.Sprintf("Running: %s", chunk.HostName), true)
+					if strings.Contains(chunk.Text, "Backup job complete!") || strings.Contains(chunk.Text, "Backup fatally failed") {
+						break
+					}
 				} else {
 					ui.Log("[%s] %s", chunk.HostName, chunk.Text)
 				}
