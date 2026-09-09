@@ -1,0 +1,29 @@
+backup_dir: "/mnt/backups"
+webhook_url: ""
+hosts:
+  - name: webserver
+    group: "production"
+    address: "192.168.1.10"
+    port: 22
+    use_sudo: true
+    retention_count: 6
+    paths:
+      - "/var/www/html"
+
+  - name: dbserver
+    group: "production"
+    address: "192.168.1.11"
+    port: 22
+    use_sudo: true
+    retention_count: 10
+    paths:
+      - "/var/lib/mysql"
+
+  - name: devserver
+    group: "development"
+    address: "192.168.1.50"
+    port: 22
+    use_sudo: true
+    retention_count: 3
+    paths:
+      - "/home/developer"
