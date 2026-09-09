@@ -27,7 +27,7 @@ This document outlines the roadmap for converting the GoBackup monolithic script
 - [ ] **Action Logging:** Add secure audit logging (e.g., `[AUDIT] User 'jovens' triggered backup on kvm01`).
 
 - [ ] **Dynamic Configuration Management:** Implement gRPC endpoints (e.g., `gbctl add host`) to dynamically register new servers to be backed up without manually editing files.
-  - *Data Store Decision:* Transition from a monolithic `config.yaml` to either an embedded SQLite database (safest for concurrent daemon writes) or a `conf.d/` directory structure containing individual YAML files per host.
+  - *Data Store Decision:* Adopt the "SourceVault Philosophy". The absolute Source of Truth will be individual YAML files inside a `conf.d/` directory to guarantee they never corrupt and can be version-controlled. The daemon will simply parse these files and cache them in-memory for fast execution.
 
 ## Phase 3: The Thin Client (TUI)
 - [ ] **Authentication UX:** Create the `gobackup login --token <TOKEN>` command to save credentials to `~/.config/gobackup/auth.json`.
