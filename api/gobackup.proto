@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package gobackup;
+
+option go_package = "gobackup/internal/grpc/pb";
+
+// The core backup orchestration service
+service BackupService {
+    // Triggers a backup for a specific host or group
+    rpc StartBackup (BackupRequest) returns (BackupResponse);
+
+    // Streams real-time logs for active backups (TUI integration)
+    rpc WatchLogs (WatchRequest) returns (stream LogChunk);
+
+    // Retrieves current running jobs and daemon status
+    rpc GetStatus (StatusRequest) returns (StatusResponse);
+}
+
+// Admin service for configuration and token management
+service AdminService {
+    // Requires Local Socket God-Mode to generate auth tokens
+    rpc GenerateToken (GenerateTokenRequest) returns (GenerateTokenResponse);
+}
+
+// --- Messages ---
+
+message BackupRequest {
+    string target = 1; // "kvm01" or "production_group"
+}
+
+message BackupResponse {
+    bool success = 1;
+    string message = 2;
+    string job_id = 3;
+}
+
+message WatchRequest {
+    // Optional: Watch a specific job, or leave empty to watch all current activity
+    string job_id = 1;
+}
+
+message LogChunk {
+    string text = 1;
+    bool is_summary = 2; // if true, this goes to the top summary window instead of the raw scrolling log
+    string host_name = 3; 
+}
+
+message StatusRequest {}
+
+message StatusResponse {
+    int32 active_jobs = 1;
+    string uptime = 2;
+}
+
+message GenerateTokenRequest {
+    string username = 1;
+    string role = 2; // e.g., "admin" or "viewer"
+}
+
+message GenerateTokenResponse {
+    string token = 1;
+}
