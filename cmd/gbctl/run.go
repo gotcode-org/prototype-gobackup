@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt"
+	// "fmt"
 	"io"
 	"log"
 	"time"
@@ -93,9 +93,10 @@ var runCmd = &cobra.Command{
 					break
 				}
 
-				if chunk.IsSummary {
+				if chunk.IsStatus {
+					ui.SetStatus(chunk.Text, chunk.Spinning)
+				} else if chunk.IsSummary {
 					ui.Summary(chunk.Text)
-					ui.SetStatus(fmt.Sprintf("Running: %s", chunk.HostName), true)
 					if strings.Contains(chunk.Text, "Backup job complete!") {
 						break
 					}

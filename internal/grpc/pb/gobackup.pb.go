@@ -175,6 +175,8 @@ type LogChunk struct {
 	Text          string                 `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
 	IsSummary     bool                   `protobuf:"varint,2,opt,name=is_summary,json=isSummary,proto3" json:"is_summary,omitempty"` // if true, this goes to the top summary window instead of the raw scrolling log
 	HostName      string                 `protobuf:"bytes,3,opt,name=host_name,json=hostName,proto3" json:"host_name,omitempty"`
+	IsStatus      bool                   `protobuf:"varint,4,opt,name=is_status,json=isStatus,proto3" json:"is_status,omitempty"`
+	Spinning      bool                   `protobuf:"varint,5,opt,name=spinning,proto3" json:"spinning,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -228,6 +230,20 @@ func (x *LogChunk) GetHostName() string {
 		return x.HostName
 	}
 	return ""
+}
+
+func (x *LogChunk) GetIsStatus() bool {
+	if x != nil {
+		return x.IsStatus
+	}
+	return false
+}
+
+func (x *LogChunk) GetSpinning() bool {
+	if x != nil {
+		return x.Spinning
+	}
+	return false
 }
 
 type StatusRequest struct {
@@ -970,12 +986,14 @@ const file_api_gobackup_proto_rawDesc = "" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x15\n" +
 	"\x06job_id\x18\x03 \x01(\tR\x05jobId\"%\n" +
 	"\fWatchRequest\x12\x15\n" +
-	"\x06job_id\x18\x01 \x01(\tR\x05jobId\"Z\n" +
+	"\x06job_id\x18\x01 \x01(\tR\x05jobId\"\x93\x01\n" +
 	"\bLogChunk\x12\x12\n" +
 	"\x04text\x18\x01 \x01(\tR\x04text\x12\x1d\n" +
 	"\n" +
 	"is_summary\x18\x02 \x01(\bR\tisSummary\x12\x1b\n" +
-	"\thost_name\x18\x03 \x01(\tR\bhostName\"\x0f\n" +
+	"\thost_name\x18\x03 \x01(\tR\bhostName\x12\x1b\n" +
+	"\tis_status\x18\x04 \x01(\bR\bisStatus\x12\x1a\n" +
+	"\bspinning\x18\x05 \x01(\bR\bspinning\"\x0f\n" +
 	"\rStatusRequest\"I\n" +
 	"\x0eStatusResponse\x12\x1f\n" +
 	"\vactive_jobs\x18\x01 \x01(\x05R\n" +

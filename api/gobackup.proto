@@ -51,7 +51,9 @@ message WatchRequest {
 message LogChunk {
     string text = 1;
     bool is_summary = 2; // if true, this goes to the top summary window instead of the raw scrolling log
-    string host_name = 3; 
+    string host_name = 3;
+    bool is_status = 4;
+    bool spinning = 5;
 }
 
 message StatusRequest {}
