@@ -1,8 +1,7 @@
 package engine
 
 import (
-	"log"
-	"os"
+		"os"
 	"strings"
 	"gopkg.in/yaml.v3"
 )
@@ -30,20 +29,17 @@ type HostConfig struct {
 
 // LoadConfig parses a base config.yaml, and then recursively reads all individual host YAMLs inside a conf.d/ directory.
 func LoadConfig(basePath string) Config {
-	data, err := os.ReadFile(basePath)
-	if err != nil {
-		log.Fatalf("❌ Failed to read base config %s: %v", basePath, err)
-	}
 	var cfg Config
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
-		log.Fatalf("❌ Failed to parse base config %s: %v", basePath, err)
+	data, err := os.ReadFile(basePath)
+	if err == nil {
+		yaml.Unmarshal(data, &cfg)
 	}
 
-	if cfg.ConfDir == "" { cfg.ConfDir = "conf.d" }
-	if cfg.DBPath == "" { cfg.DBPath = "gobackup.db" }
-	if cfg.TLSCert == "" { cfg.TLSCert = "server.crt" }
-	if cfg.TLSKey == "" { cfg.TLSKey = "server.key" }
-	if cfg.BackupDir == "" { cfg.BackupDir = "backups" }
+	if cfg.ConfDir == "" { cfg.ConfDir = "/etc/gobackup/conf.d" }
+	if cfg.DBPath == "" { cfg.DBPath = "/etc/gobackup/gobackup.db" }
+	if cfg.TLSCert == "" { cfg.TLSCert = "/etc/gobackup/server.crt" }
+	if cfg.TLSKey == "" { cfg.TLSKey = "/etc/gobackup/server.key" }
+	if cfg.BackupDir == "" { cfg.BackupDir = "/var/lib/gobackup/backups" }
 
 	os.MkdirAll(cfg.ConfDir, 0755)
 

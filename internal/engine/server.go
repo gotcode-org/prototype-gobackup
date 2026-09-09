@@ -8,6 +8,8 @@ import (
 	"os"
 	
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/credentials"
 	
 	pb "gobackup/internal/grpc/pb"
@@ -71,10 +73,32 @@ func (s *Server) Start(port int, creds credentials.TransportCredentials) error {
 
 func (s *Server) StartBackup(ctx context.Context, req *pb.BackupRequest) (*pb.BackupResponse, error) {
 	log.Printf("Received StartBackup request for target: %s", req.Target)
+	
+	var targetHost *HostConfig
+	if req.Target != "" {
+		for _, h := range s.cfg.Hosts {
+			if h.Name == req.Target {
+				targetHost = &h
+				break
+			}
+		}
+		if targetHost == nil {
+			return nil, status.Errorf(codes.NotFound, "host %s not found in configuration", req.Target)
+		}
+	} else {
+		return nil, status.Errorf(codes.InvalidArgument, "target host must be specified")
+	}
+
+	// Kick off the backup asynchronously in the background so the gRPC request can return immediately
+	go func(h HostConfig) {
+		daemonUI := &DaemonLogger{hostName: h.Name}
+		RunSingleBackup(s.cfg, h, daemonUI)
+	}(*targetHost)
+
 	return &pb.BackupResponse{
 		Success: true,
 		Message: fmt.Sprintf("Backup initiated for %s", req.Target),
-		JobId:   "job-1234", // Stub
+		JobId:   "job-" + req.Target,
 	}, nil
 }
 

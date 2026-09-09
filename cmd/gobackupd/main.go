@@ -17,7 +17,11 @@ var rootCmd = &cobra.Command{
 	Long:  "gobackupd is the background gRPC daemon that schedules and executes backups.",
 	Run: func(cmd *cobra.Command, args []string) {
 		// Load the configuration first to get paths
-		cfg := engine.LoadConfig("config.yaml")
+		cfgPath := "config.yaml"
+		if _, err := os.Stat(cfgPath); os.IsNotExist(err) {
+			cfgPath = "/etc/gobackup/config.yaml"
+		}
+		cfg := engine.LoadConfig(cfgPath)
 
 		// Initialize the SQLite Identity Store using Config
 		db, err := engine.InitDB(cfg.DBPath)
