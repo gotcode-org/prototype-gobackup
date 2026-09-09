@@ -112,8 +112,16 @@ message ListBackupsResponse {
 }
 
 message StatusRequest {}
+message UpcomingJob {
+    string host = 1;
+    string schedule = 2;
+    string next_run = 3;
+    int64 next_unix = 4;
+}
+
 message StatusResponse {
     bool online = 1;
     string active_job = 2;
     repeated string queued_jobs = 3;
+    repeated UpcomingJob upcoming_jobs = 4;
 }

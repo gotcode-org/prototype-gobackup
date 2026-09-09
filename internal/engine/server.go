@@ -2,6 +2,9 @@ package engine
 
 import (
 	"strings"
+	"time"
+	"sort"
+	"github.com/robfig/cron/v3"
 	"context"
 	"fmt"
 	"log"
@@ -262,9 +265,34 @@ func (s *Server) ListBackups(ctx context.Context, req *pb.ListBackupsRequest) (*
 func (s *Server) GetStatus(ctx context.Context, req *pb.StatusRequest) (*pb.StatusResponse, error) {
 	StateMutex.Lock()
 	defer StateMutex.Unlock()
+
+	var upcoming []*pb.UpcomingJob
+	now := time.Now()
+
+	for _, h := range s.cfg.Hosts {
+		if h.Schedule == "" { continue }
+		
+		schedule, err := cron.ParseStandard(h.Schedule)
+		if err == nil {
+			nextRun := schedule.Next(now)
+			upcoming = append(upcoming, &pb.UpcomingJob{
+				Host:     h.Name,
+				Schedule: h.Schedule,
+				NextRun:  nextRun.Format("2006-01-02 15:04:05"),
+				NextUnix: nextRun.Unix(),
+			})
+		}
+	}
+
+	// Sort upcoming jobs chronologically
+	sort.Slice(upcoming, func(i, j int) bool {
+		return upcoming[i].NextUnix < upcoming[j].NextUnix
+	})
+
 	return &pb.StatusResponse{
-		Online:     true,
-		ActiveJob:  ActiveJob,
-		QueuedJobs: QueuedJobs,
+		Online:       true,
+		ActiveJob:    ActiveJob,
+		QueuedJobs:   QueuedJobs,
+		UpcomingJobs: upcoming,
 	}, nil
 }
