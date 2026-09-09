@@ -18,6 +18,7 @@ type HostConfig struct {
 	Address        string   `yaml:"address"`
 	Port           int      `yaml:"port"`
 	UseSudo        bool     `yaml:"use_sudo"`
+	Schedule       string   `yaml:"schedule"`
 	RetentionCount int      `yaml:"retention_count"`
 	Paths          []string `yaml:"paths"`
 }

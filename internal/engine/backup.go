@@ -95,96 +95,7 @@ func RunBackups(cfg Config, ui tui.BackupUI) {
 	}
 
 	for _, host := range cfg.Hosts {
-		if host.Port == 0 {
-			host.Port = 22
-		}
-
-		timestamp := time.Now().Format("20060102_150405")
-		fileName := fmt.Sprintf("%s_%s.tar.gz", host.Name, timestamp)
-		targetFile := filepath.Join(cfg.BackupDir, fileName)
-
-		var cmd *exec.Cmd
-		if host.Address == "localhost" || host.Address == "127.0.0.1" || host.Address == "local" {
-			var args []string
-			if host.UseSudo {
-				args = []string{"tar", "-cvzf", "-"}
-				args = append(args, host.Paths...)
-				cmd = exec.Command("sudo", args...)
-			} else {
-				args = []string{"-cvzf", "-"}
-				args = append(args, host.Paths...)
-				cmd = exec.Command("tar", args...)
-			}
-		} else {
-			args := []string{"-p", strconv.Itoa(host.Port), host.Address}
-			if host.UseSudo {
-				args = append(args, "sudo", "-n", "tar", "-cvzf", "-")
-			} else {
-				args = append(args, "tar", "-cvzf", "-")
-			}
-			args = append(args, host.Paths...)
-			cmd = exec.Command("ssh", args...)
-		}
-		
-		outFile, err := os.Create(targetFile)
-		if err != nil {
-			ui.Log("   ❌ Error creating local file: %v", err)
-			continue
-		}
-		cmd.Stdout = outFile
-		cmd.Stderr = &cmdLogger{ui: ui} 
-
-		SendNotification(cfg.WebhookURL, 
-			fmt.Sprintf("🔄 Backup Started (%s)", host.Name),
-			fmt.Sprintf("Initiating tar pull natively for `%s`.", host.Name),
-			3447003, host.Name, targetFile)
-
-		startTime := time.Now()
-
-		ui.SetStatus(fmt.Sprintf("Backing up host: %s (%s)", host.Name, host.Address), true)
-
-		err = cmd.Run()
-		duration := time.Since(startTime).Round(time.Second)
-		outFile.Close()
-
-		exitCode := 0
-		if err != nil {
-			if exitError, ok := err.(*exec.ExitError); ok {
-				exitCode = exitError.ExitCode()
-			} else {
-				exitCode = -1 // Unknown error (like command not found)
-			}
-		}
-
-		if exitCode != 0 && exitCode != 1 {
-			SendNotification(cfg.WebhookURL,
-				fmt.Sprintf("❌ Backup Failed! (%s)", host.Name),
-				fmt.Sprintf("Backup fatally failed after %s (Exit Code: %d).\n\n**Error Details:**\n```text\n%v\n```", duration, exitCode, err),
-				15158332, host.Name, targetFile)
-
-			ui.Summary("   ❌ Backup fatally failed for %s (Exit Code %d): %v", host.Name, exitCode, err)
-			os.Remove(targetFile) 
-			continue
-		}
-		
-		var sizeStr string
-		if info, e := os.Stat(targetFile); e == nil {
-			sizeStr = fmt.Sprintf("%.2f MB", float64(info.Size())/1024.0/1024.0)
-		}
-
-		if exitCode == 1 {
-			SendNotification(cfg.WebhookURL,
-				fmt.Sprintf("⚠️ Backup Completed with Warnings (%s)", host.Name),
-				fmt.Sprintf("Archive finished in %s, but some active files changed or vanished during the backup process.\n\n**Statistics:**\n```text\nArchive Size: %s\n```", duration, sizeStr),
-				16766720, host.Name, targetFile)
-			ui.Summary("   ⚠️  Completed with warnings (files changed) for %s (%s)", host.Name, sizeStr)
-		} else {
-			SendNotification(cfg.WebhookURL,
-				fmt.Sprintf("✅ Backup Completed (%s)", host.Name),
-				fmt.Sprintf("tar archive finished successfully in %s.\n\n**Statistics:**\n```text\nArchive Size: %s\n```", duration, sizeStr),
-				3066993, host.Name, targetFile)
-			ui.Summary("   ✅ Success! Saved to %s (%s) in %s", targetFile, sizeStr, duration)
-		}
+		RunSingleBackup(cfg, host, ui)
 	}
 
 	ui.SetStatus("Running Retention Cleanup...", true)
@@ -192,6 +103,107 @@ func RunBackups(cfg Config, ui tui.BackupUI) {
 	CleanupOldBackups(cfg.BackupDir, cfg.Hosts, ui)
 	ui.SetStatus("Backup Complete!", false)
 	ui.Summary("🎉 Backup job complete!")
+}
+
+func RunSingleBackup(cfg Config, host HostConfig, ui tui.BackupUI) {
+	if err := os.MkdirAll(cfg.BackupDir, 0755); err != nil {
+		ui.Log("❌ Failed to create backup directory %s: %v", cfg.BackupDir, err)
+		return
+	}
+
+	if host.Port == 0 {
+		host.Port = 22
+	}
+
+	timestamp := time.Now().Format("20060102_150405")
+	fileName := fmt.Sprintf("%s_%s.tar.gz", host.Name, timestamp)
+	targetFile := filepath.Join(cfg.BackupDir, fileName)
+
+	var cmd *exec.Cmd
+	if host.Address == "localhost" || host.Address == "127.0.0.1" || host.Address == "local" {
+		var args []string
+		if host.UseSudo {
+			args = []string{"tar", "-cvzf", "-"}
+			args = append(args, host.Paths...)
+			cmd = exec.Command("sudo", args...)
+		} else {
+			args = []string{"-cvzf", "-"}
+			args = append(args, host.Paths...)
+			cmd = exec.Command("tar", args...)
+		}
+	} else {
+		args := []string{"-p", strconv.Itoa(host.Port), host.Address}
+		if host.UseSudo {
+			args = append(args, "sudo", "-n", "tar", "-cvzf", "-")
+		} else {
+			args = append(args, "tar", "-cvzf", "-")
+		}
+		args = append(args, host.Paths...)
+		cmd = exec.Command("ssh", args...)
+	}
+	
+	outFile, err := os.Create(targetFile)
+	if err != nil {
+		ui.Log("   ❌ Error creating local file: %v", err)
+		return
+	}
+	cmd.Stdout = outFile
+	cmd.Stderr = &cmdLogger{ui: ui} 
+
+	SendNotification(cfg.WebhookURL, 
+		fmt.Sprintf("🔄 Backup Started (%s)", host.Name),
+		fmt.Sprintf("Initiating tar pull natively for `%s`.", host.Name),
+		3447003, host.Name, targetFile)
+
+	startTime := time.Now()
+
+	ui.SetStatus(fmt.Sprintf("Backing up host: %s (%s)", host.Name, host.Address), true)
+
+	err = cmd.Run()
+	duration := time.Since(startTime).Round(time.Second)
+	outFile.Close()
+
+	exitCode := 0
+	if err != nil {
+		if exitError, ok := err.(*exec.ExitError); ok {
+			exitCode = exitError.ExitCode()
+		} else {
+			exitCode = -1 // Unknown error (like command not found)
+		}
+	}
+
+	if exitCode != 0 && exitCode != 1 {
+		SendNotification(cfg.WebhookURL,
+			fmt.Sprintf("❌ Backup Failed! (%s)", host.Name),
+			fmt.Sprintf("Backup fatally failed after %s (Exit Code: %d).\n\n**Error Details:**\n```text\n%v\n```", duration, exitCode, err),
+			15158332, host.Name, targetFile)
+
+		ui.Summary("   ❌ Backup fatally failed for %s (Exit Code %d): %v", host.Name, exitCode, err)
+		os.Remove(targetFile) 
+		return
+	}
+	
+	var sizeStr string
+	if info, e := os.Stat(targetFile); e == nil {
+		sizeStr = fmt.Sprintf("%.2f MB", float64(info.Size())/1024.0/1024.0)
+	}
+
+	if exitCode == 1 {
+		SendNotification(cfg.WebhookURL,
+			fmt.Sprintf("⚠️ Backup Completed with Warnings (%s)", host.Name),
+			fmt.Sprintf("Archive finished in %s, but some active files changed or vanished during the backup process.\n\n**Statistics:**\n```text\nArchive Size: %s\n```", duration, sizeStr),
+			16766720, host.Name, targetFile)
+		ui.Summary("   ⚠️  Completed with warnings (files changed) for %s (%s)", host.Name, sizeStr)
+	} else {
+		SendNotification(cfg.WebhookURL,
+			fmt.Sprintf("✅ Backup Completed (%s)", host.Name),
+			fmt.Sprintf("tar archive finished successfully in %s.\n\n**Statistics:**\n```text\nArchive Size: %s\n```", duration, sizeStr),
+			3066993, host.Name, targetFile)
+		ui.Summary("   ✅ Success! Saved to %s (%s) in %s", targetFile, sizeStr, duration)
+	}
+	
+	// Prune just this host after it finishes
+	CleanupOldBackups(cfg.BackupDir, []HostConfig{host}, ui)
 }
 
 func CleanupOldBackups(dir string, hosts []HostConfig, ui tui.BackupUI) {

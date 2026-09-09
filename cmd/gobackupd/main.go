@@ -16,6 +16,15 @@ var rootCmd = &cobra.Command{
 	Short: "GoBackup Daemon Server",
 	Long:  "gobackupd is the background gRPC daemon that schedules and executes backups.",
 	Run: func(cmd *cobra.Command, args []string) {
+		// Load the configuration
+		cfg := engine.LoadConfig("config.yaml")
+
+		// Boot up the native cron scheduler
+		scheduler := engine.NewScheduler(cfg)
+		scheduler.Start()
+		defer scheduler.Stop()
+
+		// Boot up the gRPC Server
 		srv := engine.NewServer()
 		if err := srv.Start(port); err != nil {
 			log.Fatalf("Daemon crashed: %v", err)
