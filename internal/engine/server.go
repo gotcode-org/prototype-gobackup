@@ -75,22 +75,31 @@ func (s *Server) Start(port int, creds credentials.TransportCredentials) error {
 func (s *Server) StartBackup(ctx context.Context, req *pb.BackupRequest) (*pb.BackupResponse, error) {
 	log.Printf("Received StartBackup request for target: %s", req.Target)
 	
-	var targetHost *HostConfig
-	if req.Target != "" {
-		for _, h := range s.cfg.Hosts {
-			if h.Name == req.Target {
-				targetHost = &h
-				break
-			}
-		}
-		if targetHost == nil {
-			return nil, status.Errorf(codes.NotFound, "host %s not found in configuration", req.Target)
-		}
-	} else {
-		return nil, status.Errorf(codes.InvalidArgument, "target host must be specified")
+	if req.Target == "" || req.Target == "all" {
+		go func() {
+			daemonUI := &DaemonLogger{hostName: "Global"}
+			RunBackups(s.cfg, daemonUI)
+		}()
+		return &pb.BackupResponse{
+			Success: true,
+			Message: "Global backup initiated for all hosts",
+			JobId:   "job-all",
+		}, nil
 	}
 
-	// Kick off the backup asynchronously in the background so the gRPC request can return immediately
+	var targetHost *HostConfig
+	for _, h := range s.cfg.Hosts {
+		if h.Name == req.Target {
+			targetHost = &h
+			break
+		}
+	}
+	
+	if targetHost == nil {
+		return nil, status.Errorf(codes.NotFound, "host %s not found in configuration", req.Target)
+	}
+
+	// Kick off the backup asynchronously in the background
 	go func(h HostConfig) {
 		daemonUI := &DaemonLogger{hostName: h.Name}
 		RunSingleBackup(s.cfg, h, daemonUI)
