@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"sync"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -88,6 +89,8 @@ func ListBackups(cfg Config, serverName string) {
 	}
 }
 
+var GlobalBackupQueue sync.Mutex
+
 func RunBackups(cfg Config, ui tui.BackupUI) {
 	if err := os.MkdirAll(cfg.BackupDir, 0755); err != nil {
 		ui.Log("❌ Failed to create backup directory %s: %v", cfg.BackupDir, err)
@@ -106,6 +109,12 @@ func RunBackups(cfg Config, ui tui.BackupUI) {
 }
 
 func RunSingleBackup(cfg Config, host HostConfig, ui tui.BackupUI) {
+	ui.SetStatus(fmt.Sprintf("Queued: %s", host.Name), true)
+	ui.Log("⏳ Job for %s entered the global queue. Waiting for active jobs to finish...", host.Name)
+	
+	GlobalBackupQueue.Lock()
+	defer GlobalBackupQueue.Unlock()
+
 	if err := os.MkdirAll(cfg.BackupDir, 0755); err != nil {
 		ui.Log("❌ Failed to create backup directory %s: %v", cfg.BackupDir, err)
 		return
