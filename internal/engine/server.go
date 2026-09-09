@@ -168,11 +168,25 @@ func (s *Server) AddHost(ctx context.Context, req *pb.AddHostRequest) (*pb.AddHo
 		log.Printf("GitOps sync failed (ignoring for now): %v", err)
 	}
 
-	// Hot reload the scheduler!
+	// Hot reload the scheduler and update memory!
 	if s.scheduler != nil {
 		s.scheduler.Stop()
-		cfg := LoadConfig("config.yaml")
-		s.scheduler = NewScheduler(cfg)
+		
+		// Safely find the new host or update the existing one in memory
+		found := false
+		for i, h := range s.cfg.Hosts {
+			if h.Name == host.Name {
+				s.cfg.Hosts[i] = host
+				found = true
+				break
+			}
+		}
+		if !found {
+			s.cfg.Hosts = append(s.cfg.Hosts, host)
+		}
+
+		// Reboot scheduler with updated config
+		s.scheduler = NewScheduler(s.cfg)
 		s.scheduler.Start()
 	}
 
