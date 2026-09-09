@@ -6,8 +6,8 @@ all: build
 
 build:
 	@echo "🔨 Building gbctl and gobackupd..."
-	go build -o gbctl ./cmd/gbctl
-	go build -o gobackupd ./cmd/gobackupd
+	go build -buildvcs=false -o gbctl ./cmd/gbctl
+	go build -buildvcs=false -o gobackupd ./cmd/gobackupd
 	@echo "✅ Build complete!"
 
 install: build
