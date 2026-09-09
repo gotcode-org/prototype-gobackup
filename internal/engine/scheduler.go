@@ -76,7 +76,7 @@ func (d *DaemonLogger) Summary(format string, args ...interface{}) {
 func (d *DaemonLogger) SetStatus(status string, spinning bool) {
 	log.Printf("[Daemon Status - %s] %s", d.hostName, status)
 	// Status updates are broadcast as summary lines for the TUI to render
-	GlobalLogBroker.Broadcast(&pb.LogChunk{Text: status, IsSummary: true, HostName: d.hostName})
+	GlobalLogBroker.Broadcast(&pb.LogChunk{Text: status, IsStatus: true, Spinning: spinning, HostName: d.hostName})
 }
 func (d *DaemonLogger) Start() error { return nil }
 func (d *DaemonLogger) Stop()        {}
