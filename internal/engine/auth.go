@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 )
 
 // GenerateToken creates a secure, random bearer token (e.g., gb_abc123...)

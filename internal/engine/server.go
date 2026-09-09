@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
 	
 	"google.golang.org/grpc"
 	
@@ -22,22 +23,35 @@ func NewServer(db *DB) *Server {
 	return &Server{db: db}
 }
 
-// Start listens on the given port and serves gRPC requests
+// Start listens on the given TCP port and a local Unix socket, serving gRPC requests
 func (s *Server) Start(port int) error {
-	addr := fmt.Sprintf(":%d", port)
-	lis, err := net.Listen("tcp", addr)
+	tcpAddr := fmt.Sprintf(":%d", port)
+	tcpLis, err := net.Listen("tcp", tcpAddr)
 	if err != nil {
-		return fmt.Errorf("failed to listen: %w", err)
+		return fmt.Errorf("failed to listen on TCP: %w", err)
 	}
 	
-	grpcServer := grpc.NewServer()
+	sockPath := "/tmp/gobackupd.sock"
+	_ = os.Remove(sockPath) // Clean up old socket if it exists
+	unixLis, err := net.Listen("unix", sockPath)
+	if err != nil {
+		return fmt.Errorf("failed to listen on Unix Socket: %w", err)
+	}
+
+	// Apply Interceptors for SQLite Token Auth and God-Mode Bypass
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(AuthInterceptor(s.db)),
+		grpc.StreamInterceptor(StreamAuthInterceptor(s.db)),
+	)
 	
 	// Register both services
 	pb.RegisterBackupServiceServer(grpcServer, s)
 	pb.RegisterAdminServiceServer(grpcServer, s)
 	
-	log.Printf("🚀 GoBackup Daemon running on %s", addr)
-	return grpcServer.Serve(lis)
+	log.Printf("🚀 GoBackup Daemon running on TCP %s and Unix Socket %s", tcpAddr, sockPath)
+	
+	go grpcServer.Serve(unixLis)
+	return grpcServer.Serve(tcpLis)
 }
 
 // --- BackupService Implementation ---
