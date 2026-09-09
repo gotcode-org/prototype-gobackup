@@ -335,7 +335,6 @@ func runBackups(cfg Config, ui BackupUI) {
 		return
 	}
 
-	ui.Summary("🚀 Starting GoBackup...")
 
 	for _, host := range cfg.Hosts {
 		if host.Port == 0 {
