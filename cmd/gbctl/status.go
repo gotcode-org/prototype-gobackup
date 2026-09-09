@@ -58,8 +58,8 @@ var statusCmd = &cobra.Command{
 			fmt.Println("\n📅 Upcoming Scheduled Jobs:")
 			fmt.Println("-----------------------------------------------------")
 			for i, job := range resp.UpcomingJobs {
-				if i >= 5 {
-					fmt.Printf("   ... and %d more\n", len(resp.UpcomingJobs)-5)
+				if i >= 15 {
+					fmt.Printf("   ... and %d more\n", len(resp.UpcomingJobs)-15)
 					break
 				}
 				fmt.Printf("   [%s] %s (Cron: %s)\n", job.NextRun, job.Host, job.Schedule)
