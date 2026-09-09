@@ -2,6 +2,17 @@
 
 This document outlines the roadmap for converting the GoBackup monolithic script into a highly concurrent, multi-user gRPC Client/Server Daemon.
 
+## Phase 0: Standard Go Project Restructuring
+- [ ] **Directory Layout:** Reorganize the monolithic codebase into the standard Go project layout.
+  - `cmd/server/`: Entrypoint for the background daemon.
+  - `cmd/client/`: Entrypoint for the thin CLI/TUI client.
+  - `internal/engine/`: Core business logic (cron scheduling, auth, tar/ssh execution).
+  - `internal/tui/`: Bubbletea/Tview presentation logic.
+  - `internal/grpc/`: Protobuf generated code and client/server interceptors.
+- [ ] **Cobra CLI Integration:** Implement `spf13/cobra` for robust command routing.
+  - Ensure the `cmd/` packages remain strictly for command registration and flag parsing.
+  - Offload all actual execution logic to the isolated `internal/` packages to ensure a clean separation of concerns.
+
 ## Phase 1: Protocol & Interface Design
 - [ ] **Define Protobuf Schema (`api/gobackup.proto`)**
   - Define core RPCs: `StartBackup`, `GetStatus`, `ListJobs`, `PruneBackups`.
