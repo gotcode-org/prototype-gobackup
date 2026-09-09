@@ -17,6 +17,7 @@ service BackupService {
 
     // List all configured hosts
     rpc ListHosts (ListRequest) returns (ListResponse);
+    rpc ListBackups (ListBackupsRequest) returns (ListBackupsResponse);
     // Manually trigger retention cleanup
     rpc PruneBackups (PruneRequest) returns (PruneResponse);
 }
@@ -99,4 +100,16 @@ message PruneRequest {}
 message PruneResponse {
     bool success = 1;
     string message = 2;
+}
+message ListBackupsRequest {
+    string target = 1;
+}
+message BackupArchive {
+    string host = 1;
+    string filename = 2;
+    int64 size = 3;
+    string modified = 4;
+}
+message ListBackupsResponse {
+    repeated BackupArchive archives = 1;
 }

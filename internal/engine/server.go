@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"strings"
 	"context"
 	"fmt"
 	"log"
@@ -217,4 +218,39 @@ func (s *Server) PruneBackups(ctx context.Context, req *pb.PruneRequest) (*pb.Pr
 		Success: true,
 		Message: "Prune complete",
 	}, nil
+}
+func (s *Server) ListBackups(ctx context.Context, req *pb.ListBackupsRequest) (*pb.ListBackupsResponse, error) {
+	var resp pb.ListBackupsResponse
+	
+	entries, err := os.ReadDir(s.cfg.BackupDir)
+	if err != nil {
+		return &resp, nil
+	}
+
+	for _, hostDir := range entries {
+		if !hostDir.IsDir() { continue }
+		
+		if req.Target != "" && hostDir.Name() != req.Target {
+			continue
+		}
+
+		hostPath := s.cfg.BackupDir + "/" + hostDir.Name()
+		files, err := os.ReadDir(hostPath)
+		if err != nil { continue }
+
+		for _, f := range files {
+			if strings.HasSuffix(f.Name(), ".tar.gz") {
+				info, err := f.Info()
+				if err != nil { continue }
+				
+				resp.Archives = append(resp.Archives, &pb.BackupArchive{
+					Host:     hostDir.Name(),
+					Filename: f.Name(),
+					Size:     info.Size(),
+					Modified: info.ModTime().Format("2006-01-02 15:04:05"),
+				})
+			}
+		}
+	}
+	return &resp, nil
 }

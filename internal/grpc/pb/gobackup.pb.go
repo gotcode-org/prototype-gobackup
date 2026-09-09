@@ -802,6 +802,162 @@ func (x *PruneResponse) GetMessage() string {
 	return ""
 }
 
+type ListBackupsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Target        string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListBackupsRequest) Reset() {
+	*x = ListBackupsRequest{}
+	mi := &file_api_gobackup_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListBackupsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListBackupsRequest) ProtoMessage() {}
+
+func (x *ListBackupsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_gobackup_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListBackupsRequest.ProtoReflect.Descriptor instead.
+func (*ListBackupsRequest) Descriptor() ([]byte, []int) {
+	return file_api_gobackup_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *ListBackupsRequest) GetTarget() string {
+	if x != nil {
+		return x.Target
+	}
+	return ""
+}
+
+type BackupArchive struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Host          string                 `protobuf:"bytes,1,opt,name=host,proto3" json:"host,omitempty"`
+	Filename      string                 `protobuf:"bytes,2,opt,name=filename,proto3" json:"filename,omitempty"`
+	Size          int64                  `protobuf:"varint,3,opt,name=size,proto3" json:"size,omitempty"`
+	Modified      string                 `protobuf:"bytes,4,opt,name=modified,proto3" json:"modified,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BackupArchive) Reset() {
+	*x = BackupArchive{}
+	mi := &file_api_gobackup_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BackupArchive) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BackupArchive) ProtoMessage() {}
+
+func (x *BackupArchive) ProtoReflect() protoreflect.Message {
+	mi := &file_api_gobackup_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BackupArchive.ProtoReflect.Descriptor instead.
+func (*BackupArchive) Descriptor() ([]byte, []int) {
+	return file_api_gobackup_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *BackupArchive) GetHost() string {
+	if x != nil {
+		return x.Host
+	}
+	return ""
+}
+
+func (x *BackupArchive) GetFilename() string {
+	if x != nil {
+		return x.Filename
+	}
+	return ""
+}
+
+func (x *BackupArchive) GetSize() int64 {
+	if x != nil {
+		return x.Size
+	}
+	return 0
+}
+
+func (x *BackupArchive) GetModified() string {
+	if x != nil {
+		return x.Modified
+	}
+	return ""
+}
+
+type ListBackupsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Archives      []*BackupArchive       `protobuf:"bytes,1,rep,name=archives,proto3" json:"archives,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListBackupsResponse) Reset() {
+	*x = ListBackupsResponse{}
+	mi := &file_api_gobackup_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListBackupsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListBackupsResponse) ProtoMessage() {}
+
+func (x *ListBackupsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_gobackup_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListBackupsResponse.ProtoReflect.Descriptor instead.
+func (*ListBackupsResponse) Descriptor() ([]byte, []int) {
+	return file_api_gobackup_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *ListBackupsResponse) GetArchives() []*BackupArchive {
+	if x != nil {
+		return x.Archives
+	}
+	return nil
+}
+
 var File_api_gobackup_proto protoreflect.FileDescriptor
 
 const file_api_gobackup_proto_rawDesc = "" +
@@ -853,12 +1009,22 @@ const file_api_gobackup_proto_rawDesc = "" +
 	"\fPruneRequest\"C\n" +
 	"\rPruneResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage2\xc9\x02\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\",\n" +
+	"\x12ListBackupsRequest\x12\x16\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\"o\n" +
+	"\rBackupArchive\x12\x12\n" +
+	"\x04host\x18\x01 \x01(\tR\x04host\x12\x1a\n" +
+	"\bfilename\x18\x02 \x01(\tR\bfilename\x12\x12\n" +
+	"\x04size\x18\x03 \x01(\x03R\x04size\x12\x1a\n" +
+	"\bmodified\x18\x04 \x01(\tR\bmodified\"J\n" +
+	"\x13ListBackupsResponse\x123\n" +
+	"\barchives\x18\x01 \x03(\v2\x17.gobackup.BackupArchiveR\barchives2\x95\x03\n" +
 	"\rBackupService\x12@\n" +
 	"\vStartBackup\x12\x17.gobackup.BackupRequest\x1a\x18.gobackup.BackupResponse\x129\n" +
 	"\tWatchLogs\x12\x16.gobackup.WatchRequest\x1a\x12.gobackup.LogChunk0\x01\x12>\n" +
 	"\tGetStatus\x12\x17.gobackup.StatusRequest\x1a\x18.gobackup.StatusResponse\x12:\n" +
-	"\tListHosts\x12\x15.gobackup.ListRequest\x1a\x16.gobackup.ListResponse\x12?\n" +
+	"\tListHosts\x12\x15.gobackup.ListRequest\x1a\x16.gobackup.ListResponse\x12J\n" +
+	"\vListBackups\x12\x1c.gobackup.ListBackupsRequest\x1a\x1d.gobackup.ListBackupsResponse\x12?\n" +
 	"\fPruneBackups\x12\x16.gobackup.PruneRequest\x1a\x17.gobackup.PruneResponse2\xa0\x01\n" +
 	"\fAdminService\x12P\n" +
 	"\rGenerateToken\x12\x1e.gobackup.GenerateTokenRequest\x1a\x1f.gobackup.GenerateTokenResponse\x12>\n" +
@@ -876,7 +1042,7 @@ func file_api_gobackup_proto_rawDescGZIP() []byte {
 	return file_api_gobackup_proto_rawDescData
 }
 
-var file_api_gobackup_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_api_gobackup_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_api_gobackup_proto_goTypes = []any{
 	(*BackupRequest)(nil),         // 0: gobackup.BackupRequest
 	(*BackupResponse)(nil),        // 1: gobackup.BackupResponse
@@ -893,28 +1059,34 @@ var file_api_gobackup_proto_goTypes = []any{
 	(*ListResponse)(nil),          // 12: gobackup.ListResponse
 	(*PruneRequest)(nil),          // 13: gobackup.PruneRequest
 	(*PruneResponse)(nil),         // 14: gobackup.PruneResponse
+	(*ListBackupsRequest)(nil),    // 15: gobackup.ListBackupsRequest
+	(*BackupArchive)(nil),         // 16: gobackup.BackupArchive
+	(*ListBackupsResponse)(nil),   // 17: gobackup.ListBackupsResponse
 }
 var file_api_gobackup_proto_depIdxs = []int32{
 	11, // 0: gobackup.ListResponse.hosts:type_name -> gobackup.HostInfo
-	0,  // 1: gobackup.BackupService.StartBackup:input_type -> gobackup.BackupRequest
-	2,  // 2: gobackup.BackupService.WatchLogs:input_type -> gobackup.WatchRequest
-	4,  // 3: gobackup.BackupService.GetStatus:input_type -> gobackup.StatusRequest
-	10, // 4: gobackup.BackupService.ListHosts:input_type -> gobackup.ListRequest
-	13, // 5: gobackup.BackupService.PruneBackups:input_type -> gobackup.PruneRequest
-	6,  // 6: gobackup.AdminService.GenerateToken:input_type -> gobackup.GenerateTokenRequest
-	8,  // 7: gobackup.AdminService.AddHost:input_type -> gobackup.AddHostRequest
-	1,  // 8: gobackup.BackupService.StartBackup:output_type -> gobackup.BackupResponse
-	3,  // 9: gobackup.BackupService.WatchLogs:output_type -> gobackup.LogChunk
-	5,  // 10: gobackup.BackupService.GetStatus:output_type -> gobackup.StatusResponse
-	12, // 11: gobackup.BackupService.ListHosts:output_type -> gobackup.ListResponse
-	14, // 12: gobackup.BackupService.PruneBackups:output_type -> gobackup.PruneResponse
-	7,  // 13: gobackup.AdminService.GenerateToken:output_type -> gobackup.GenerateTokenResponse
-	9,  // 14: gobackup.AdminService.AddHost:output_type -> gobackup.AddHostResponse
-	8,  // [8:15] is the sub-list for method output_type
-	1,  // [1:8] is the sub-list for method input_type
-	1,  // [1:1] is the sub-list for extension type_name
-	1,  // [1:1] is the sub-list for extension extendee
-	0,  // [0:1] is the sub-list for field type_name
+	16, // 1: gobackup.ListBackupsResponse.archives:type_name -> gobackup.BackupArchive
+	0,  // 2: gobackup.BackupService.StartBackup:input_type -> gobackup.BackupRequest
+	2,  // 3: gobackup.BackupService.WatchLogs:input_type -> gobackup.WatchRequest
+	4,  // 4: gobackup.BackupService.GetStatus:input_type -> gobackup.StatusRequest
+	10, // 5: gobackup.BackupService.ListHosts:input_type -> gobackup.ListRequest
+	15, // 6: gobackup.BackupService.ListBackups:input_type -> gobackup.ListBackupsRequest
+	13, // 7: gobackup.BackupService.PruneBackups:input_type -> gobackup.PruneRequest
+	6,  // 8: gobackup.AdminService.GenerateToken:input_type -> gobackup.GenerateTokenRequest
+	8,  // 9: gobackup.AdminService.AddHost:input_type -> gobackup.AddHostRequest
+	1,  // 10: gobackup.BackupService.StartBackup:output_type -> gobackup.BackupResponse
+	3,  // 11: gobackup.BackupService.WatchLogs:output_type -> gobackup.LogChunk
+	5,  // 12: gobackup.BackupService.GetStatus:output_type -> gobackup.StatusResponse
+	12, // 13: gobackup.BackupService.ListHosts:output_type -> gobackup.ListResponse
+	17, // 14: gobackup.BackupService.ListBackups:output_type -> gobackup.ListBackupsResponse
+	14, // 15: gobackup.BackupService.PruneBackups:output_type -> gobackup.PruneResponse
+	7,  // 16: gobackup.AdminService.GenerateToken:output_type -> gobackup.GenerateTokenResponse
+	9,  // 17: gobackup.AdminService.AddHost:output_type -> gobackup.AddHostResponse
+	10, // [10:18] is the sub-list for method output_type
+	2,  // [2:10] is the sub-list for method input_type
+	2,  // [2:2] is the sub-list for extension type_name
+	2,  // [2:2] is the sub-list for extension extendee
+	0,  // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_api_gobackup_proto_init() }
@@ -928,7 +1100,7 @@ func file_api_gobackup_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_gobackup_proto_rawDesc), len(file_api_gobackup_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   15,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

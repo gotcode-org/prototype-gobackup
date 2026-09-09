@@ -23,6 +23,7 @@ const (
 	BackupService_WatchLogs_FullMethodName    = "/gobackup.BackupService/WatchLogs"
 	BackupService_GetStatus_FullMethodName    = "/gobackup.BackupService/GetStatus"
 	BackupService_ListHosts_FullMethodName    = "/gobackup.BackupService/ListHosts"
+	BackupService_ListBackups_FullMethodName  = "/gobackup.BackupService/ListBackups"
 	BackupService_PruneBackups_FullMethodName = "/gobackup.BackupService/PruneBackups"
 )
 
@@ -40,6 +41,7 @@ type BackupServiceClient interface {
 	GetStatus(ctx context.Context, in *StatusRequest, opts ...grpc.CallOption) (*StatusResponse, error)
 	// List all configured hosts
 	ListHosts(ctx context.Context, in *ListRequest, opts ...grpc.CallOption) (*ListResponse, error)
+	ListBackups(ctx context.Context, in *ListBackupsRequest, opts ...grpc.CallOption) (*ListBackupsResponse, error)
 	// Manually trigger retention cleanup
 	PruneBackups(ctx context.Context, in *PruneRequest, opts ...grpc.CallOption) (*PruneResponse, error)
 }
@@ -101,6 +103,16 @@ func (c *backupServiceClient) ListHosts(ctx context.Context, in *ListRequest, op
 	return out, nil
 }
 
+func (c *backupServiceClient) ListBackups(ctx context.Context, in *ListBackupsRequest, opts ...grpc.CallOption) (*ListBackupsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListBackupsResponse)
+	err := c.cc.Invoke(ctx, BackupService_ListBackups_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *backupServiceClient) PruneBackups(ctx context.Context, in *PruneRequest, opts ...grpc.CallOption) (*PruneResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(PruneResponse)
@@ -125,6 +137,7 @@ type BackupServiceServer interface {
 	GetStatus(context.Context, *StatusRequest) (*StatusResponse, error)
 	// List all configured hosts
 	ListHosts(context.Context, *ListRequest) (*ListResponse, error)
+	ListBackups(context.Context, *ListBackupsRequest) (*ListBackupsResponse, error)
 	// Manually trigger retention cleanup
 	PruneBackups(context.Context, *PruneRequest) (*PruneResponse, error)
 	mustEmbedUnimplementedBackupServiceServer()
@@ -148,6 +161,9 @@ func (UnimplementedBackupServiceServer) GetStatus(context.Context, *StatusReques
 }
 func (UnimplementedBackupServiceServer) ListHosts(context.Context, *ListRequest) (*ListResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListHosts not implemented")
+}
+func (UnimplementedBackupServiceServer) ListBackups(context.Context, *ListBackupsRequest) (*ListBackupsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListBackups not implemented")
 }
 func (UnimplementedBackupServiceServer) PruneBackups(context.Context, *PruneRequest) (*PruneResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method PruneBackups not implemented")
@@ -238,6 +254,24 @@ func _BackupService_ListHosts_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BackupService_ListBackups_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListBackupsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BackupServiceServer).ListBackups(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BackupService_ListBackups_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BackupServiceServer).ListBackups(ctx, req.(*ListBackupsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _BackupService_PruneBackups_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(PruneRequest)
 	if err := dec(in); err != nil {
@@ -274,6 +308,10 @@ var BackupService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListHosts",
 			Handler:    _BackupService_ListHosts_Handler,
+		},
+		{
+			MethodName: "ListBackups",
+			Handler:    _BackupService_ListBackups_Handler,
 		},
 		{
 			MethodName: "PruneBackups",
