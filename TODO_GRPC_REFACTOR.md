@@ -37,4 +37,4 @@ This document outlines the roadmap for converting the GoBackup monolithic script
 
 ## Phase 4: Security & Networking
 - [ ] **Transport Layer:** Implement TLS wrapping for the gRPC server (or bind strictly to Tailscale IPs).
-- [ ] **Unix Socket Fallback:** Allow the daemon to listen on `/var/run/gobackup.sock` for zero-network, permission-based local execution.
+- [ ] **Local Socket "God-Mode":** The daemon will listen on a secured local Unix socket (`/var/run/gobackupd.sock`). Local commands executed by the server Admin bypass gRPC token authentication entirely. This provides a secure, token-less recovery mechanism if the SQLite database corrupts, allowing the Admin to run `gbctl admin generate-token` locally.
