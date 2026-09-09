@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/robfig/cron/v3"
+	pb "gobackup/internal/grpc/pb"
 )
 
 type Scheduler struct {
@@ -65,13 +66,17 @@ type DaemonLogger struct {
 func (d *DaemonLogger) Log(format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
 	log.Printf("[Daemon UI - %s] %s", d.hostName, msg)
+	GlobalLogBroker.Broadcast(&pb.LogChunk{Text: msg, IsSummary: false, HostName: d.hostName})
 }
 func (d *DaemonLogger) Summary(format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
 	log.Printf("[Daemon Summary - %s] %s", d.hostName, msg)
+	GlobalLogBroker.Broadcast(&pb.LogChunk{Text: msg, IsSummary: true, HostName: d.hostName})
 }
 func (d *DaemonLogger) SetStatus(status string, spinning bool) {
 	log.Printf("[Daemon Status - %s] %s", d.hostName, status)
+	// Status updates are broadcast as summary lines for the TUI to render
+	GlobalLogBroker.Broadcast(&pb.LogChunk{Text: status, IsSummary: true, HostName: d.hostName})
 }
 func (d *DaemonLogger) Start() error { return nil }
 func (d *DaemonLogger) Stop()        {}

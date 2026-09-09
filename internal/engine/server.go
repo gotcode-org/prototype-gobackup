@@ -67,15 +67,24 @@ func (s *Server) StartBackup(ctx context.Context, req *pb.BackupRequest) (*pb.Ba
 }
 
 func (s *Server) WatchLogs(req *pb.WatchRequest, stream pb.BackupService_WatchLogsServer) error {
-	log.Printf("Client watching logs for job: %s", req.JobId)
+	log.Printf("Client connected to log stream for job: %s", req.JobId)
 	
-	// Stub: Send a fake log message
 	stream.Send(&pb.LogChunk{
-		Text:      "Daemon connected, awaiting logs...",
+		Text:      "🔗 Connected to GoBackup Daemon Log Stream...",
 		IsSummary: false,
 		HostName:  "daemon",
 	})
-	
+
+	// Subscribe to the global log broadcaster
+	ch := GlobalLogBroker.Subscribe()
+	defer GlobalLogBroker.Unsubscribe(ch)
+
+	for chunk := range ch {
+		if err := stream.Send(chunk); err != nil {
+			log.Printf("Client disconnected from log stream")
+			return err
+		}
+	}
 	return nil
 }
 
