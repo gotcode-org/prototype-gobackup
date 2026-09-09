@@ -97,6 +97,7 @@ var runCmd = &cobra.Command{
 					ui.SetStatus(chunk.Text, chunk.Spinning)
 				} else if chunk.IsSummary {
 					ui.Summary(chunk.Text)
+					ui.Log("[%s] %s", chunk.HostName, chunk.Text)
 					if strings.Contains(chunk.Text, "Backup job complete!") {
 						break
 					}

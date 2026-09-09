@@ -93,7 +93,6 @@ func (u *TviewUI) Summary(format string, args ...interface{}) {
 			u.summaryLines = u.summaryLines[len(u.summaryLines)-10:]
 		}
 	})
-	u.Log(msg)
 }
 
 func (u *TviewUI) SetStatus(status string, spinning bool) {
