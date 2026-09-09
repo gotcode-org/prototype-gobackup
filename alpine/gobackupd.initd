@@ -1,0 +1,24 @@
+#!/sbin/openrc-run
+
+name="gobackupd"
+description="GoBackup Daemon"
+
+command="/usr/local/bin/gobackupd"
+command_user="gobackup:gobackup"
+command_background="yes"
+pidfile="/run/${RC_SVCNAME}.pid"
+
+depend() {
+    need net
+    after firewall
+}
+
+start_pre() {
+    checkpath -d -m 0755 -o gobackup:gobackup /etc/gobackup
+    checkpath -d -m 0755 -o gobackup:gobackup /var/lib/gobackup
+    
+    # Ensure config file has proper permissions if it exists
+    if [ -f /etc/gobackup/config.yaml ]; then
+        chown gobackup:gobackup /etc/gobackup/config.yaml
+    fi
+}
