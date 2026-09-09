@@ -5,6 +5,7 @@ go 1.25.0
 require (
 	github.com/gdamore/tcell/v2 v2.13.10
 	github.com/rivo/tview v0.42.0
+	github.com/robfig/cron/v3 v3.0.1
 	github.com/spf13/cobra v1.10.2
 	google.golang.org/grpc v1.83.2
 	google.golang.org/protobuf v1.36.12

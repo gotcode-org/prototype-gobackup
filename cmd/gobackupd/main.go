@@ -16,6 +16,12 @@ var rootCmd = &cobra.Command{
 	Short: "GoBackup Daemon Server",
 	Long:  "gobackupd is the background gRPC daemon that schedules and executes backups.",
 	Run: func(cmd *cobra.Command, args []string) {
+		// Initialize the SQLite Identity Store
+		db, err := engine.InitDB("gobackup.db")
+		if err != nil {
+			log.Fatalf("Failed to initialize database: %v", err)
+		}
+
 		// Load the configuration
 		cfg := engine.LoadConfig("config.yaml")
 
@@ -25,7 +31,7 @@ var rootCmd = &cobra.Command{
 		defer scheduler.Stop()
 
 		// Boot up the gRPC Server
-		srv := engine.NewServer()
+		srv := engine.NewServer(db)
 		if err := srv.Start(port); err != nil {
 			log.Fatalf("Daemon crashed: %v", err)
 		}

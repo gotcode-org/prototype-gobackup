@@ -15,10 +15,11 @@ import (
 type Server struct {
 	pb.UnimplementedBackupServiceServer
 	pb.UnimplementedAdminServiceServer
+	db *DB
 }
 
-func NewServer() *Server {
-	return &Server{}
+func NewServer(db *DB) *Server {
+	return &Server{db: db}
 }
 
 // Start listens on the given port and serves gRPC requests
@@ -74,7 +75,13 @@ func (s *Server) GetStatus(ctx context.Context, req *pb.StatusRequest) (*pb.Stat
 
 func (s *Server) GenerateToken(ctx context.Context, req *pb.GenerateTokenRequest) (*pb.GenerateTokenResponse, error) {
 	log.Printf("Received GenerateToken request for user: %s (Role: %s)", req.Username, req.Role)
+	
+	rawToken, err := s.db.CreateUser(req.Username, req.Role)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate token: %w", err)
+	}
+
 	return &pb.GenerateTokenResponse{
-		Token: "stub-token-abc-123",
+		Token: rawToken,
 	}, nil
 }
