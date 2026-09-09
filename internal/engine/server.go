@@ -40,26 +40,30 @@ func (s *Server) Start(port int, creds credentials.TransportCredentials) error {
 		return fmt.Errorf("failed to listen on Unix Socket: %w", err)
 	}
 
-	// Apply Interceptors and TLS
-	var opts []grpc.ServerOption
-	opts = append(opts, grpc.UnaryInterceptor(AuthInterceptor(s.db)))
-	opts = append(opts, grpc.StreamInterceptor(StreamAuthInterceptor(s.db)))
-	
-	// Only apply TLS to the TCP listener if credentials are provided
+	// 1. Setup TCP Server (Requires TLS & Interceptors)
+	var tcpOpts []grpc.ServerOption
+	tcpOpts = append(tcpOpts, grpc.UnaryInterceptor(AuthInterceptor(s.db)))
+	tcpOpts = append(tcpOpts, grpc.StreamInterceptor(StreamAuthInterceptor(s.db)))
 	if creds != nil {
-		opts = append(opts, grpc.Creds(creds))
+		tcpOpts = append(tcpOpts, grpc.Creds(creds))
 	}
+	tcpServer := grpc.NewServer(tcpOpts...)
+	pb.RegisterBackupServiceServer(tcpServer, s)
+	pb.RegisterAdminServiceServer(tcpServer, s)
 
-	grpcServer := grpc.NewServer(opts...)
+	// 2. Setup Unix Socket Server (NO TLS, Plain-text local God-Mode)
+	unixOpts := []grpc.ServerOption{
+		grpc.UnaryInterceptor(AuthInterceptor(s.db)),
+		grpc.StreamInterceptor(StreamAuthInterceptor(s.db)),
+	}
+	unixServer := grpc.NewServer(unixOpts...)
+	pb.RegisterBackupServiceServer(unixServer, s)
+	pb.RegisterAdminServiceServer(unixServer, s)
 	
-	// Register both services
-	pb.RegisterBackupServiceServer(grpcServer, s)
-	pb.RegisterAdminServiceServer(grpcServer, s)
+	log.Printf("🚀 GoBackup Daemon running on TCP %s (TLS) and Unix Socket %s (Plaintext)", tcpAddr, sockPath)
 	
-	log.Printf("🚀 GoBackup Daemon running on TCP %s and Unix Socket %s", tcpAddr, sockPath)
-	
-	go grpcServer.Serve(unixLis)
-	return grpcServer.Serve(tcpLis)
+	go unixServer.Serve(unixLis)
+	return tcpServer.Serve(tcpLis)
 }
 
 // --- BackupService Implementation ---
