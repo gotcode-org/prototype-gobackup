@@ -1,0 +1,20 @@
+# =========================================================
+# GoBackup Daemon Global Configuration
+# Default Location: /etc/gobackup/config.yaml
+# =========================================================
+
+# Directory where the GitOps YAML host configurations will be managed
+conf_dir: "/etc/gobackup/conf.d"
+
+# The absolute path to the SQLite database containing user roles and tokens
+db_path: "/etc/gobackup/gobackup.db"
+
+# The physical destination where the .tar.gz archives will be stored
+backup_dir: "/var/lib/gobackup/backups"
+
+# TLS certificates for secure gRPC (Auto-generated if missing)
+tls_cert: "/etc/gobackup/server.crt"
+tls_key: "/etc/gobackup/server.key"
+
+# Optional Discord Webhook for notifications (leave blank to disable)
+webhook_url: "https://discord.com/api/webhooks/..."
