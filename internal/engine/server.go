@@ -103,6 +103,8 @@ func (s *Server) StartBackup(ctx context.Context, req *pb.BackupRequest) (*pb.Ba
 	go func(h HostConfig) {
 		daemonUI := &DaemonLogger{hostName: h.Name}
 		RunSingleBackup(s.cfg, h, daemonUI)
+		daemonUI.SetStatus("Backup Complete!", false)
+		daemonUI.Summary("🎉 Backup job complete!")
 	}(*targetHost)
 
 	return &pb.BackupResponse{

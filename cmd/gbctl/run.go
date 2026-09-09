@@ -96,7 +96,7 @@ var runCmd = &cobra.Command{
 				if chunk.IsSummary {
 					ui.Summary(chunk.Text)
 					ui.SetStatus(fmt.Sprintf("Running: %s", chunk.HostName), true)
-					if strings.Contains(chunk.Text, "Backup job complete!") || strings.Contains(chunk.Text, "Backup fatally failed") {
+					if strings.Contains(chunk.Text, "Backup job complete!") {
 						break
 					}
 				} else {
