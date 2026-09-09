@@ -79,7 +79,7 @@ func NewTviewUI() *TviewUI {
 	statusView := tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignCenter)
-	statusView.SetBorder(true).SetTitle(" Current Server Status ")
+	statusView.SetBorder(true).SetTitle(" Status ")
 
 	logView := tview.NewTextView().
 		SetDynamicColors(true).
@@ -146,13 +146,13 @@ func (u *TviewUI) startSpinnerLoop() {
 					
 					history := strings.Join(u.summaryLines, "\n")
 					if history != "" {
-						history += "\n\n"
+						history = "\n\n" + history
 					}
 					if u.isSpinning {
-						text = fmt.Sprintf("%s[yellow::b]%s %s[-::-]", history, spinChars[i], u.statusText)
+						text = fmt.Sprintf("[yellow::b]%s %s[-::-]%s", spinChars[i], u.statusText, history)
 						i = (i + 1) % len(spinChars)
 					} else {
-						text = fmt.Sprintf("%s[green::b]%s[-::-]", history, u.statusText)
+						text = fmt.Sprintf("[green::b]%s[-::-]%s", u.statusText, history)
 					}
 					u.app.QueueUpdateDraw(func() {
 						u.statusView.SetText(text)
@@ -385,7 +385,6 @@ func runBackups(cfg Config, ui BackupUI) {
 		startTime := time.Now()
 
 		ui.SetStatus(fmt.Sprintf("Backing up host: %s (%s)", host.Name, host.Address), true)
-		ui.Summary("⏳ Started backing up %s...", host.Name)
 
 		err = cmd.Run()
 		duration := time.Since(startTime).Round(time.Second)
