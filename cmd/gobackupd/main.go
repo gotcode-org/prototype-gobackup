@@ -16,14 +16,14 @@ var rootCmd = &cobra.Command{
 	Short: "GoBackup Daemon Server",
 	Long:  "gobackupd is the background gRPC daemon that schedules and executes backups.",
 	Run: func(cmd *cobra.Command, args []string) {
-		// Initialize the SQLite Identity Store
-		db, err := engine.InitDB("gobackup.db")
+		// Load the configuration first to get paths
+		cfg := engine.LoadConfig("config.yaml")
+
+		// Initialize the SQLite Identity Store using Config
+		db, err := engine.InitDB(cfg.DBPath)
 		if err != nil {
 			log.Fatalf("Failed to initialize database: %v", err)
 		}
-
-		// Load the configuration
-		cfg := engine.LoadConfig("config.yaml")
 
 		// Boot up the native cron scheduler
 		scheduler := engine.NewScheduler(cfg)
@@ -31,13 +31,13 @@ var rootCmd = &cobra.Command{
 		defer scheduler.Stop()
 
 		// Load or generate TLS certificates for encryption
-		tlsCreds, err := engine.LoadOrGenerateTLS("server.crt", "server.key")
+		tlsCreds, err := engine.LoadOrGenerateTLS(cfg.TLSCert, cfg.TLSKey)
 		if err != nil {
 			log.Fatalf("Failed to initialize TLS: %v", err)
 		}
 
 		// Boot up the gRPC Server with TLS
-		srv := engine.NewServer(db, scheduler)
+		srv := engine.NewServer(cfg, db, scheduler)
 		if err := srv.Start(port, tlsCreds); err != nil {
 			log.Fatalf("Daemon crashed: %v", err)
 		}

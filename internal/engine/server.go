@@ -15,14 +15,15 @@ import (
 
 // Server implements both the BackupService and AdminService gRPC interfaces.
 type Server struct {
+	cfg Config
 	pb.UnimplementedBackupServiceServer
 	pb.UnimplementedAdminServiceServer
 	db        *DB
 	scheduler *Scheduler
 }
 
-func NewServer(db *DB, scheduler *Scheduler) *Server {
-	return &Server{db: db, scheduler: scheduler}
+func NewServer(cfg Config, db *DB, scheduler *Scheduler) *Server {
+	return &Server{cfg: cfg, db: db, scheduler: scheduler}
 }
 
 // Start listens on the given TCP port and a local Unix socket, serving gRPC requests
@@ -135,11 +136,11 @@ func (s *Server) AddHost(ctx context.Context, req *pb.AddHostRequest) (*pb.AddHo
 		Schedule:       req.Schedule,
 	}
 
-	if err := WriteHostConfig(host); err != nil {
+	if err := WriteHostConfig(s.cfg.ConfDir, host); err != nil {
 		return nil, fmt.Errorf("failed to write YAML: %v", err)
 	}
 
-	if err := GitOpsSync("conf.d", "chore: add backup host " + req.Name); err != nil {
+	if err := GitOpsSync(s.cfg.ConfDir, "chore: add backup host " + req.Name); err != nil {
 		log.Printf("GitOps sync failed (ignoring for now): %v", err)
 	}
 
@@ -154,5 +155,28 @@ func (s *Server) AddHost(ctx context.Context, req *pb.AddHostRequest) (*pb.AddHo
 	return &pb.AddHostResponse{
 		Success: true,
 		Message: "Host added and GitOps sync triggered successfully",
+	}, nil
+}
+
+func (s *Server) ListHosts(ctx context.Context, req *pb.ListRequest) (*pb.ListResponse, error) {
+	var resp pb.ListResponse
+	for _, h := range s.cfg.Hosts {
+		resp.Hosts = append(resp.Hosts, &pb.HostInfo{
+			Name:           h.Name,
+			Address:        h.Address,
+			Schedule:       h.Schedule,
+			RetentionCount: int32(h.RetentionCount),
+		})
+	}
+	return &resp, nil
+}
+
+func (s *Server) PruneBackups(ctx context.Context, req *pb.PruneRequest) (*pb.PruneResponse, error) {
+	log.Println("Manual prune requested via gRPC")
+	ui := &DaemonLogger{hostName: "prune"}
+	CleanupOldBackups(s.cfg.BackupDir, s.cfg.Hosts, ui)
+	return &pb.PruneResponse{
+		Success: true,
+		Message: "Prune complete",
 	}, nil
 }

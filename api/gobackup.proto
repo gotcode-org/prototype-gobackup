@@ -14,6 +14,11 @@ service BackupService {
 
     // Retrieves current running jobs and daemon status
     rpc GetStatus (StatusRequest) returns (StatusResponse);
+
+    // List all configured hosts
+    rpc ListHosts (ListRequest) returns (ListResponse);
+    // Manually trigger retention cleanup
+    rpc PruneBackups (PruneRequest) returns (PruneResponse);
 }
 
 // Admin service for configuration and token management
@@ -76,6 +81,22 @@ message AddHostRequest {
 }
 
 message AddHostResponse {
+    bool success = 1;
+    string message = 2;
+}
+message ListRequest {}
+message HostInfo {
+    string name = 1;
+    string address = 2;
+    string schedule = 3;
+    int32 retention_count = 4;
+}
+message ListResponse {
+    repeated HostInfo hosts = 1;
+}
+
+message PruneRequest {}
+message PruneResponse {
     bool success = 1;
     string message = 2;
 }

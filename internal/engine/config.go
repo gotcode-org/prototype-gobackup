@@ -10,6 +10,10 @@ import (
 type Config struct {
 	BackupDir  string       `yaml:"backup_dir"`
 	WebhookURL string       `yaml:"webhook_url"`
+	ConfDir    string       `yaml:"conf_dir"`
+	DBPath     string       `yaml:"db_path"`
+	TLSCert    string       `yaml:"tls_cert"`
+	TLSKey     string       `yaml:"tls_key"`
 	Hosts      []HostConfig `yaml:"hosts"`
 }
 
@@ -35,16 +39,20 @@ func LoadConfig(basePath string) Config {
 		log.Fatalf("❌ Failed to parse base config %s: %v", basePath, err)
 	}
 
-	// Make sure conf.d exists
-	confDir := "conf.d"
-	os.MkdirAll(confDir, 0755)
+	if cfg.ConfDir == "" { cfg.ConfDir = "conf.d" }
+	if cfg.DBPath == "" { cfg.DBPath = "gobackup.db" }
+	if cfg.TLSCert == "" { cfg.TLSCert = "server.crt" }
+	if cfg.TLSKey == "" { cfg.TLSKey = "server.key" }
+	if cfg.BackupDir == "" { cfg.BackupDir = "backups" }
+
+	os.MkdirAll(cfg.ConfDir, 0755)
 
 	// Scan for individual host files
-	files, err := os.ReadDir(confDir)
+	files, err := os.ReadDir(cfg.ConfDir)
 	if err == nil {
 		for _, f := range files {
 			if strings.HasSuffix(f.Name(), ".yaml") || strings.HasSuffix(f.Name(), ".yml") {
-				hostData, err := os.ReadFile(confDir + "/" + f.Name())
+				hostData, err := os.ReadFile(cfg.ConfDir + "/" + f.Name())
 				if err == nil {
 					var host HostConfig
 					if yaml.Unmarshal(hostData, &host) == nil {
@@ -59,8 +67,8 @@ func LoadConfig(basePath string) Config {
 }
 
 // WriteHostConfig dynamically generates a YAML file for a single host in the conf.d/ directory
-func WriteHostConfig(host HostConfig) error {
-	confDir := "conf.d"
+func WriteHostConfig(confDir string, host HostConfig) error {
+
 	os.MkdirAll(confDir, 0755)
 
 	data, err := yaml.Marshal(host)
