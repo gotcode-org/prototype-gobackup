@@ -27,12 +27,7 @@ func AuthInterceptor(db *DB) grpc.UnaryServerInterceptor {
 			return handler(ctx, req)
 		}
 
-		// 2. Block TCP access to the AdminService entirely
-		if strings.HasPrefix(info.FullMethod, "/gobackup.AdminService/") {
-			return nil, status.Errorf(codes.PermissionDenied, "AdminService is restricted to local Unix socket access only")
-		}
-
-		// 3. Extract Bearer Token for BackupService TCP requests
+		// 2. Extract Bearer Token for TCP requests
 		md, ok := metadata.FromIncomingContext(ctx)
 		if !ok {
 			return nil, status.Errorf(codes.Unauthenticated, "metadata is not provided")
@@ -56,7 +51,14 @@ func AuthInterceptor(db *DB) grpc.UnaryServerInterceptor {
 			return nil, status.Errorf(codes.Unauthenticated, "invalid or expired token")
 		}
 
-		// 5. Inject User Identity into Context
+		// 5. Enforce RBAC for AdminService
+		if strings.HasPrefix(info.FullMethod, "/gobackup.AdminService/") {
+			if user.Role != "admin" {
+				return nil, status.Errorf(codes.PermissionDenied, "requires 'admin' role")
+			}
+		}
+
+		// 6. Inject User Identity into Context
 		ctx = context.WithValue(ctx, "user", user)
 
 		return handler(ctx, req)
@@ -77,10 +79,6 @@ func StreamAuthInterceptor(db *DB) grpc.StreamServerInterceptor {
 			return handler(srv, ss)
 		}
 
-		if strings.HasPrefix(info.FullMethod, "/gobackup.AdminService/") {
-			return status.Errorf(codes.PermissionDenied, "AdminService is restricted to local Unix socket access only")
-		}
-
 		md, ok := metadata.FromIncomingContext(ctx)
 		if !ok {
 			return status.Errorf(codes.Unauthenticated, "metadata is not provided")
@@ -96,6 +94,12 @@ func StreamAuthInterceptor(db *DB) grpc.StreamServerInterceptor {
 		user, err := db.ValidateToken(rawToken)
 		if err != nil {
 			return status.Errorf(codes.Unauthenticated, "invalid or expired token")
+		}
+
+		if strings.HasPrefix(info.FullMethod, "/gobackup.AdminService/") {
+			if user.Role != "admin" {
+				return status.Errorf(codes.PermissionDenied, "requires 'admin' role")
+			}
 		}
 
 		// Wrapped stream to inject user into context
