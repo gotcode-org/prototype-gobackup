@@ -1,8 +1,6 @@
-
 # Compiled Binaries
-gbctl
-gobackupd
-gobackup.db
+/gbctl
+/gobackupd
+/gobackup.db
 server.crt
 server.key
-
