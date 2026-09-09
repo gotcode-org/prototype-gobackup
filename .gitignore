@@ -1,0 +1,8 @@
+
+# Compiled Binaries
+gbctl
+gobackupd
+gobackup.db
+server.crt
+server.key
+
