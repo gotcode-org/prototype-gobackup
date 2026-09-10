@@ -3,6 +3,7 @@ package engine
 import (
 	"strings"
 	"time"
+	"syscall"
 	"sort"
 	"github.com/robfig/cron/v3"
 	"context"
@@ -289,10 +290,36 @@ func (s *Server) GetStatus(ctx context.Context, req *pb.StatusRequest) (*pb.Stat
 		return upcoming[i].NextUnix < upcoming[j].NextUnix
 	})
 
+	totalDisk, freeDisk, usedDisk := getDiskInfo(s.cfg.BackupDir)
+	
+	var totalBackups int32 = 0
+	if files, err := os.ReadDir(s.cfg.BackupDir); err == nil {
+		for _, entry := range files {
+			if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".tar.gz") {
+				totalBackups++
+			}
+		}
+	}
+
 	return &pb.StatusResponse{
 		Online:       true,
 		ActiveJob:    ActiveJob,
 		QueuedJobs:   QueuedJobs,
 		UpcomingJobs: upcoming,
+		DiskTotal:    totalDisk,
+		DiskUsed:     usedDisk,
+		DiskFree:     freeDisk,
+		TotalBackups: totalBackups,
 	}, nil
+}
+
+func getDiskInfo(path string) (total, free, used int64) {
+	var stat syscall.Statfs_t
+	if err := syscall.Statfs(path, &stat); err != nil {
+		return 0, 0, 0
+	}
+	total = int64(stat.Blocks) * int64(stat.Bsize)
+	free = int64(stat.Bavail) * int64(stat.Bsize)
+	used = total - free
+	return total, free, used
 }

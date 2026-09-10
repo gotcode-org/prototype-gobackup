@@ -66,8 +66,33 @@ var statusCmd = &cobra.Command{
 			}
 		}
 
+		
+		fmt.Println("\n💾 Backup Storage Statistics:")
+		fmt.Println("-----------------------------------------------------")
+		fmt.Printf("Total Archives: %d\n", resp.TotalBackups)
+		if resp.DiskTotal > 0 {
+			pct := float64(resp.DiskFree) / float64(resp.DiskTotal) * 100
+			fmt.Printf("Storage Usage:  %s / %s (%.1f%% Free)\n", formatSize(resp.DiskUsed), formatSize(resp.DiskTotal), pct)
+		} else {
+			fmt.Println("Storage Usage:  Unknown (Cannot stat directory)")
+		}
+		
 		fmt.Println()
 	},
+}
+
+
+func formatSize(bytes int64) string {
+	const unit = 1024
+	if bytes < unit {
+		return fmt.Sprintf("%d B", bytes)
+	}
+	div, exp := int64(unit), 0
+	for n := bytes / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.2f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
 }
 
 func init() {

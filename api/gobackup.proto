@@ -124,4 +124,8 @@ message StatusResponse {
     string active_job = 2;
     repeated string queued_jobs = 3;
     repeated UpcomingJob upcoming_jobs = 4;
+    int64 disk_total = 5;
+    int64 disk_used = 6;
+    int64 disk_free = 7;
+    int32 total_backups = 8;
 }

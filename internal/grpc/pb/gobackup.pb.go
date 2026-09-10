@@ -996,6 +996,10 @@ type StatusResponse struct {
 	ActiveJob     string                 `protobuf:"bytes,2,opt,name=active_job,json=activeJob,proto3" json:"active_job,omitempty"`
 	QueuedJobs    []string               `protobuf:"bytes,3,rep,name=queued_jobs,json=queuedJobs,proto3" json:"queued_jobs,omitempty"`
 	UpcomingJobs  []*UpcomingJob         `protobuf:"bytes,4,rep,name=upcoming_jobs,json=upcomingJobs,proto3" json:"upcoming_jobs,omitempty"`
+	DiskTotal     int64                  `protobuf:"varint,5,opt,name=disk_total,json=diskTotal,proto3" json:"disk_total,omitempty"`
+	DiskUsed      int64                  `protobuf:"varint,6,opt,name=disk_used,json=diskUsed,proto3" json:"disk_used,omitempty"`
+	DiskFree      int64                  `protobuf:"varint,7,opt,name=disk_free,json=diskFree,proto3" json:"disk_free,omitempty"`
+	TotalBackups  int32                  `protobuf:"varint,8,opt,name=total_backups,json=totalBackups,proto3" json:"total_backups,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1056,6 +1060,34 @@ func (x *StatusResponse) GetUpcomingJobs() []*UpcomingJob {
 		return x.UpcomingJobs
 	}
 	return nil
+}
+
+func (x *StatusResponse) GetDiskTotal() int64 {
+	if x != nil {
+		return x.DiskTotal
+	}
+	return 0
+}
+
+func (x *StatusResponse) GetDiskUsed() int64 {
+	if x != nil {
+		return x.DiskUsed
+	}
+	return 0
+}
+
+func (x *StatusResponse) GetDiskFree() int64 {
+	if x != nil {
+		return x.DiskFree
+	}
+	return 0
+}
+
+func (x *StatusResponse) GetTotalBackups() int32 {
+	if x != nil {
+		return x.TotalBackups
+	}
+	return 0
 }
 
 var File_api_gobackup_proto protoreflect.FileDescriptor
@@ -1121,14 +1153,19 @@ const file_api_gobackup_proto_rawDesc = "" +
 	"\x04host\x18\x01 \x01(\tR\x04host\x12\x1a\n" +
 	"\bschedule\x18\x02 \x01(\tR\bschedule\x12\x19\n" +
 	"\bnext_run\x18\x03 \x01(\tR\anextRun\x12\x1b\n" +
-	"\tnext_unix\x18\x04 \x01(\x03R\bnextUnix\"\xa4\x01\n" +
+	"\tnext_unix\x18\x04 \x01(\x03R\bnextUnix\"\xa2\x02\n" +
 	"\x0eStatusResponse\x12\x16\n" +
 	"\x06online\x18\x01 \x01(\bR\x06online\x12\x1d\n" +
 	"\n" +
 	"active_job\x18\x02 \x01(\tR\tactiveJob\x12\x1f\n" +
 	"\vqueued_jobs\x18\x03 \x03(\tR\n" +
 	"queuedJobs\x12:\n" +
-	"\rupcoming_jobs\x18\x04 \x03(\v2\x15.gobackup.UpcomingJobR\fupcomingJobs2\x95\x03\n" +
+	"\rupcoming_jobs\x18\x04 \x03(\v2\x15.gobackup.UpcomingJobR\fupcomingJobs\x12\x1d\n" +
+	"\n" +
+	"disk_total\x18\x05 \x01(\x03R\tdiskTotal\x12\x1b\n" +
+	"\tdisk_used\x18\x06 \x01(\x03R\bdiskUsed\x12\x1b\n" +
+	"\tdisk_free\x18\a \x01(\x03R\bdiskFree\x12#\n" +
+	"\rtotal_backups\x18\b \x01(\x05R\ftotalBackups2\x95\x03\n" +
 	"\rBackupService\x12@\n" +
 	"\vStartBackup\x12\x17.gobackup.BackupRequest\x1a\x18.gobackup.BackupResponse\x129\n" +
 	"\tWatchLogs\x12\x16.gobackup.WatchRequest\x1a\x12.gobackup.LogChunk0\x01\x12:\n" +
