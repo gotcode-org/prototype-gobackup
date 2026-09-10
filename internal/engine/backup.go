@@ -106,6 +106,12 @@ var (
 func EnqueueJob(host string) {
 	StateMutex.Lock()
 	defer StateMutex.Unlock()
+	// Prevent duplicates so we can pre-populate global runs safely
+	for _, v := range QueuedJobs {
+		if v == host {
+			return
+		}
+	}
 	QueuedJobs = append(QueuedJobs, host)
 }
 
@@ -131,6 +137,11 @@ func RunBackups(cfg Config, ui tui.BackupUI) {
 	if err := os.MkdirAll(cfg.BackupDir, 0755); err != nil {
 		ui.Log("❌ Failed to create backup directory %s: %v", cfg.BackupDir, err)
 		return
+	}
+
+	// Pre-populate the queue so gbctl status immediately shows all pending hosts!
+	for _, host := range cfg.Hosts {
+		EnqueueJob(host.Name)
 	}
 
 	for _, host := range cfg.Hosts {
