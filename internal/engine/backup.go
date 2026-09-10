@@ -24,7 +24,13 @@ type cmdLogger struct {
 }
 
 func (c *cmdLogger) Write(p []byte) (n int, err error) {
-	c.ui.Log("%s", strings.TrimSpace(string(p)))
+	lines := strings.Split(string(p), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			c.ui.Log("%s", line)
+		}
+	}
 	return len(p), nil
 }
 
