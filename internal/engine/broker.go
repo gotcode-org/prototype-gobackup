@@ -2,6 +2,7 @@ package engine
 
 import (
 	"sync"
+	"time"
 	pb "gobackup/internal/grpc/pb"
 )
 
@@ -18,7 +19,7 @@ var GlobalLogBroker = &LogBroker{
 func (b *LogBroker) Subscribe() chan *pb.LogChunk {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	ch := make(chan *pb.LogChunk, 100)
+	ch := make(chan *pb.LogChunk, 10000)
 	b.subscribers[ch] = true
 	return ch
 }
@@ -34,10 +35,18 @@ func (b *LogBroker) Broadcast(chunk *pb.LogChunk) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	for ch := range b.subscribers {
-		select {
-		case ch <- chunk:
-		default:
-			// Drop message if client is too slow rather than blocking the daemon
+		if chunk.IsSummary || chunk.IsStatus {
+			select {
+			case ch <- chunk:
+			case <-time.After(1 * time.Second):
+				// Force wait for up to 1 second for critical UI control messages
+			}
+		} else {
+			select {
+			case ch <- chunk:
+			default:
+				// Drop standard streaming logs if buffer is full
+			}
 		}
 	}
 }
