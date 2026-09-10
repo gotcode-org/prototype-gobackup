@@ -69,7 +69,7 @@ func NewTviewUI() *TviewUI {
 		app:         app,
 		statusView:  statusView,
 		logView:     logView,
-		stopSpinner: make(chan bool),
+		stopSpinner: make(chan bool, 1),
 	}
 	ui.startSpinnerLoop()
 	return ui
