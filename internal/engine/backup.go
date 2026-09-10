@@ -325,7 +325,9 @@ func SendNotification(webhookURL, title, desc string, color int, hostName, targe
 	b, _ := json.Marshal(payload)
 	req, _ := http.NewRequest("POST", webhookURL, bytes.NewBuffer(b))
 	req.Header.Set("Content-Type", "application/json")
-	client := &http.Client{}
+	client := &http.Client{
+		Timeout: 5 * time.Second,
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		if ui != nil { ui.Log("   ❌ Webhook HTTP Error: %v", err) }
