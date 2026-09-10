@@ -135,6 +135,10 @@ func (u *TviewUI) startSpinnerLoop() {
 func (u *TviewUI) Start() error { return u.app.Run() }
 
 func (u *TviewUI) Stop() {
+	select {
+	case u.stopSpinner <- true:
+	default:
+	}
 	u.app.QueueUpdateDraw(func() {
 		u.statusView.SetText(u.statusView.GetText(false) + "\n\n[white::b]Backup finished! Press 'q', 'Enter', or 'Esc' to exit...[-::-]")
 	})
