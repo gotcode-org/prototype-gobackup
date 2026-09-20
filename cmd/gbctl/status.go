@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"log"
-	"crypto/tls"
+	"os"
 	"strings"
+	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
@@ -56,13 +58,18 @@ var statusCmd = &cobra.Command{
 
 		if len(resp.UpcomingJobs) > 0 {
 			fmt.Println("\n📅 Upcoming Scheduled Jobs:")
-			fmt.Println("-----------------------------------------------------")
+			w := tabwriter.NewWriter(os.Stdout, 0, 8, 4, ' ', 0)
+			fmt.Fprintln(w, "HOST\tNEXT RUN\tSCHEDULE")
+			fmt.Fprintln(w, "----\t--------\t--------")
 			for i, job := range resp.UpcomingJobs {
 				if i >= 15 {
-					fmt.Printf("   ... and %d more\n", len(resp.UpcomingJobs)-15)
 					break
 				}
-				fmt.Printf("   [%s] %s (Cron: %s)\n", job.NextRun, job.Host, job.Schedule)
+				fmt.Fprintf(w, "%s\t%s\t%s\n", job.Host, job.NextRun, job.Schedule)
+			}
+			w.Flush()
+			if len(resp.UpcomingJobs) > 15 {
+				fmt.Printf("... and %d more\n", len(resp.UpcomingJobs)-15)
 			}
 		}
 
