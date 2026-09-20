@@ -1,0 +1,32 @@
+[Unit]
+Description=GoBackup Daemon (gRPC & Cron Backup Engine) [%i]
+Documentation=https://github.com/gotcode/prototype-gobackup
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Automatically runs as the user/group specified in the instance name (e.g. gobackupd@backup.service)
+User=%i
+Group=%i
+ExecStart=/usr/local/bin/gobackupd
+Restart=always
+RestartSec=5s
+
+# Systemd automatically creates and sets ownership for:
+# - /etc/gobackup
+# - /var/lib/gobackup
+# - /run/gobackup
+ConfigurationDirectory=gobackup
+StateDirectory=gobackup
+RuntimeDirectory=gobackup
+
+# Working directory
+WorkingDirectory=/var/lib/gobackup
+
+# Standard environment & resource limits
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
