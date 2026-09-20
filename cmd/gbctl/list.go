@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"log"
-	"crypto/tls"
+	"os"
+	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
@@ -40,13 +42,20 @@ var listHostsCmd = &cobra.Command{
 		resp, err := client.ListHosts(context.Background(), &pb.ListRequest{})
 		if err != nil { log.Fatalf("❌ RPC Error: %v", err) }
 
-		fmt.Println("\n🗄️  Configured Backup Hosts:")
-		fmt.Println("-----------------------------------------------------")
+		if len(resp.Hosts) == 0 {
+			fmt.Println("No configured backup hosts found.")
+			return
+		}
+
+		w := tabwriter.NewWriter(os.Stdout, 0, 8, 4, ' ', 0)
+		fmt.Fprintln(w, "HOST\tADDRESS\tSCHEDULE\tRETENTION")
+		fmt.Fprintln(w, "----\t-------\t--------\t---------")
 		for _, h := range resp.Hosts {
 			schedule := h.Schedule
 			if schedule == "" { schedule = "Manual Only" }
-			fmt.Printf("📦 %s\n   Address:   %s\n   Schedule:  %s\n   Retention: %d copies\n\n", h.Name, h.Address, schedule, h.RetentionCount)
+			fmt.Fprintf(w, "%s\t%s\t%s\t%d\n", h.Name, h.Address, schedule, h.RetentionCount)
 		}
+		w.Flush()
 	},
 }
 
@@ -74,16 +83,18 @@ var listBackupsCmd = &cobra.Command{
 		resp, err := client.ListBackups(context.Background(), &pb.ListBackupsRequest{Target: target})
 		if err != nil { log.Fatalf("❌ RPC Error: %v", err) }
 
-		fmt.Println("\n💾 Backup Archives on Disk:")
-		fmt.Println("-----------------------------------------------------")
-		for _, a := range resp.Archives {
-			sizeMB := float64(a.Size) / 1024 / 1024
-			fmt.Printf("[%s] %s | %.2f MB | %s\n", a.Host, a.Filename, sizeMB, a.Modified)
-		}
 		if len(resp.Archives) == 0 {
 			fmt.Println("No backups found.")
+			return
 		}
-		fmt.Println()
+
+		w := tabwriter.NewWriter(os.Stdout, 0, 8, 4, ' ', 0)
+		fmt.Fprintln(w, "HOST\tARCHIVE\tSIZE\tMODIFIED")
+		fmt.Fprintln(w, "----\t-------\t----\t--------")
+		for _, a := range resp.Archives {
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", a.Host, a.Filename, formatSize(a.Size), a.Modified)
+		}
+		w.Flush()
 	},
 }
 
