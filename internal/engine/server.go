@@ -263,6 +263,7 @@ func (s *Server) GetStatus(ctx context.Context, req *pb.StatusRequest) (*pb.Stat
 			nextRun := schedule.Next(now)
 			upcoming = append(upcoming, &pb.UpcomingJob{
 				Job:     h.Name,
+                Server:  h.Server,
 				Schedule: h.Schedule,
 				NextRun:  nextRun.Format("2006-01-02 15:04:05"),
 				NextUnix: nextRun.Unix(),

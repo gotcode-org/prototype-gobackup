@@ -99,6 +99,7 @@ message UpcomingJob {
     string schedule = 2;
     string next_run = 3;
     int64 next_unix = 4;
+    string server = 5;
 }
 
 message StatusResponse {
