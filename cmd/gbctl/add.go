@@ -2,10 +2,10 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"log"
 	"strings"
-	"crypto/tls"
 
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
@@ -15,13 +15,15 @@ import (
 )
 
 var (
-	volumes    string
-	schedule   string
-	paths      string
-	retention  int
-	useSudo    bool
-	sshPort    int
-	group      string
+	addGroup      string
+	addPort       int
+	addSudo       bool
+	addSchedule   string
+	addRetention  int
+	addPaths      string
+	addVolumes    string
+	addPause      string
+	addJobServer  string
 )
 
 var addCmd = &cobra.Command{
@@ -29,68 +31,92 @@ var addCmd = &cobra.Command{
 	Short: "Add resources to the GoBackup daemon",
 }
 
-var addHostCmd = &cobra.Command{
-	Use:   "host [name] [address]",
-	Short: "Dynamically configure and schedule a new backup host",
+var addServerCmd = &cobra.Command{
+	Use:   "server [name] [address]",
+	Short: "Add a new server configuration",
 	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		cfg := LoadClientConfig()
-		if cfg.Token == "" {
-			log.Fatalf("❌ Not authenticated. Please run: gbctl login <TOKEN>")
+		req := &pb.AddServerRequest{
+			Name:    args[0],
+			Address: args[1],
+			Group:   addGroup,
+			Port:    int32(addPort),
+			UseSudo: addSudo,
 		}
-
-		opts := []grpc.DialOption{
-			grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})),
-			grpc.WithPerRPCCredentials(tokenAuth{token: cfg.Token}),
-		}
-		conn, err := grpc.Dial(cfg.ServerAddress, opts...)
-		if err != nil {
-			log.Fatalf("❌ Failed to connect: %v", err)
-		}
-		defer conn.Close()
-		
-		// Note: AddHost is an AdminService RPC
-		client := pb.NewAdminServiceClient(conn)
-
-		pathList := strings.Split(paths, ",")
-		volumeList := strings.Split(volumes, ",")
-		if len(volumeList) == 1 && volumeList[0] == "" {
-			volumeList = []string{}
-		}
-		if len(pathList) == 1 && pathList[0] == "" {
-			pathList = []string{}
-		}
-
-		req := &pb.AddHostRequest{
-			Name:           args[0],
-			Address:        args[1],
-			Schedule:       schedule,
-			RetentionCount: int32(retention),
-			UseSudo:        useSudo,
-			Port:        int32(sshPort),
-			Group:          group,
-			Paths:          pathList,
-			DockerVolumes:  volumeList,
-		}
-
-		resp, err := client.AddHost(context.Background(), req)
-		if err != nil {
-			log.Fatalf("❌ RPC Error: %v", err)
-		}
-
-		fmt.Printf("✅ %s\n", resp.Message)
+		sendAddServerRequest(req)
 	},
 }
 
-func init() {
-	addHostCmd.Flags().StringVarP(&schedule, "schedule", "s", "", "Cron schedule (e.g., '0 2 * * *')")
-	addHostCmd.Flags().StringVarP(&paths, "paths", "p", "/etc,/var/www", "Comma-separated paths to backup")
-	addHostCmd.Flags().StringVarP(&volumes, "volumes", "v", "", "Comma-separated Docker volumes to backup")
-	addHostCmd.Flags().IntVarP(&retention, "retention", "r", 5, "Number of backups to keep")
-	addHostCmd.Flags().BoolVar(&useSudo, "sudo", false, "Use sudo for remote tar execution")
-	addHostCmd.Flags().IntVar(&sshPort, "port", 22, "SSH port")
-	addHostCmd.Flags().StringVarP(&group, "group", "g", "servers", "Host group category")
+var addJobCmd = &cobra.Command{
+	Use:   "job [name]",
+	Short: "Add a new backup job",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		req := &pb.AddJobRequest{
+			Name:           args[0],
+			Server:         addJobServer,
+			Schedule:       addSchedule,
+			RetentionCount: int32(addRetention),
+		}
+		if addPaths != "" {
+			req.Paths = strings.Split(addPaths, ",")
+		}
+		if addVolumes != "" {
+			req.DockerVolumes = strings.Split(addVolumes, ",")
+		}
+		if addPause != "" {
+			req.PauseContainers = strings.Split(addPause, ",")
+		}
+		sendAddJobRequest(req)
+	},
+}
+
+func sendAddServerRequest(req *pb.AddServerRequest) {
+	cfg := LoadClientConfig()
+	opts := []grpc.DialOption{
+		grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})),
+		grpc.WithPerRPCCredentials(tokenAuth{token: cfg.Token}),
+	}
+	conn, err := grpc.Dial(cfg.ServerAddress, opts...)
+	if err != nil { log.Fatalf("❌ Failed to connect: %v", err) }
+	defer conn.Close()
 	
-	addCmd.AddCommand(addHostCmd)
+	client := pb.NewAdminServiceClient(conn)
+	resp, err := client.AddServer(context.Background(), req)
+	if err != nil { log.Fatalf("❌ RPC Error: %v", err) }
+	fmt.Printf("✅ %s\n", resp.Message)
+}
+
+func sendAddJobRequest(req *pb.AddJobRequest) {
+	cfg := LoadClientConfig()
+	opts := []grpc.DialOption{
+		grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})),
+		grpc.WithPerRPCCredentials(tokenAuth{token: cfg.Token}),
+	}
+	conn, err := grpc.Dial(cfg.ServerAddress, opts...)
+	if err != nil { log.Fatalf("❌ Failed to connect: %v", err) }
+	defer conn.Close()
+	
+	client := pb.NewAdminServiceClient(conn)
+	resp, err := client.AddJob(context.Background(), req)
+	if err != nil { log.Fatalf("❌ RPC Error: %v", err) }
+	fmt.Printf("✅ %s\n", resp.Message)
+}
+
+func init() {
+	addServerCmd.Flags().StringVarP(&addGroup, "group", "g", "default", "Server group name")
+	addServerCmd.Flags().IntVarP(&addPort, "port", "p", 22, "SSH Port")
+	addServerCmd.Flags().BoolVar(&addSudo, "sudo", false, "Use sudo for execution")
+	
+	addJobCmd.Flags().StringVar(&addJobServer, "server", "", "Target server for this job (required)")
+	addJobCmd.MarkFlagRequired("server")
+	addJobCmd.Flags().StringVarP(&addSchedule, "schedule", "s", "", "Cron schedule")
+	addJobCmd.Flags().IntVarP(&addRetention, "retention", "r", 7, "Number of backups to keep")
+	addJobCmd.Flags().StringVar(&addPaths, "paths", "", "Comma-separated list of paths to backup")
+	addJobCmd.Flags().StringVar(&addVolumes, "volumes", "", "Comma-separated list of Docker volumes to backup")
+	addJobCmd.Flags().StringVar(&addPause, "pause", "", "Comma-separated list of Docker containers to pause during backup")
+
+	addCmd.AddCommand(addServerCmd)
+	addCmd.AddCommand(addJobCmd)
 	rootCmd.AddCommand(addCmd)
 }

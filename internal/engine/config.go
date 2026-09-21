@@ -1,34 +1,45 @@
 package engine
 
 import (
-		"os"
+	"os"
+	"path/filepath"
 	"strings"
 	"gopkg.in/yaml.v3"
 )
 
 type Config struct {
-	BackupDir  string       `yaml:"backup_dir"`
-	WebhookURL string       `yaml:"webhook_url"`
-	ConfDir    string       `yaml:"conf_dir"`
-	DBPath     string       `yaml:"db_path"`
-	TLSCert    string       `yaml:"tls_cert"`
-	TLSKey     string       `yaml:"tls_key"`
-	Hosts      []HostConfig `yaml:"hosts"`
+	BackupDir  string         `yaml:"backup_dir"`
+	WebhookURL string         `yaml:"webhook_url"`
+	ConfDir    string         `yaml:"conf_dir"`
+	DBPath     string         `yaml:"db_path"`
+	TLSCert    string         `yaml:"tls_cert"`
+	TLSKey     string         `yaml:"tls_key"`
+	Servers    []ServerConfig `yaml:"servers"`
+	Jobs       []JobConfig    `yaml:"jobs"`
 }
 
-type HostConfig struct {
-	Name           string   `yaml:"name"`
-	Group          string   `yaml:"group"`
-	Address        string   `yaml:"address"`
-	Port           int      `yaml:"port"`
-	UseSudo        bool     `yaml:"use_sudo"`
-	Schedule       string   `yaml:"schedule"`
-	RetentionCount int      `yaml:"retention_count"`
-	Paths          []string `yaml:"paths"`
-	DockerVolumes  []string `yaml:"docker_volumes"`
+type ServerConfig struct {
+	Name    string `yaml:"name"`
+	Group   string `yaml:"group"`
+	Address string `yaml:"address"`
+	Port    int    `yaml:"port"`
+	UseSudo bool   `yaml:"use_sudo"`
 }
 
-// LoadConfig parses a base config.yaml, and then recursively reads all individual host YAMLs inside a conf.d/ directory.
+type JobPreBackup struct {
+	PauseContainers []string `yaml:"pause_containers"`
+}
+
+type JobConfig struct {
+	Name           string       `yaml:"name"`
+	Server         string       `yaml:"server"`
+	Schedule       string       `yaml:"schedule"`
+	RetentionCount int          `yaml:"retention_count"`
+	Paths          []string     `yaml:"paths"`
+	DockerVolumes  []string     `yaml:"docker_volumes"`
+	PreBackup      JobPreBackup `yaml:"pre_backup"`
+}
+
 func LoadConfig(basePath string) Config {
 	var cfg Config
 	data, err := os.ReadFile(basePath)
@@ -42,18 +53,35 @@ func LoadConfig(basePath string) Config {
 	if cfg.TLSKey == "" { cfg.TLSKey = "/etc/gobackup/server.key" }
 	if cfg.BackupDir == "" { cfg.BackupDir = "/var/lib/gobackup/backups" }
 
-	os.MkdirAll(cfg.ConfDir, 0755)
+	serversDir := filepath.Join(cfg.ConfDir, "servers")
+	jobsDir := filepath.Join(cfg.ConfDir, "jobs")
+	os.MkdirAll(serversDir, 0755)
+	os.MkdirAll(jobsDir, 0755)
 
-	// Scan for individual host files
-	files, err := os.ReadDir(cfg.ConfDir)
+	files, err := os.ReadDir(serversDir)
 	if err == nil {
 		for _, f := range files {
 			if strings.HasSuffix(f.Name(), ".yaml") || strings.HasSuffix(f.Name(), ".yml") {
-				hostData, err := os.ReadFile(cfg.ConfDir + "/" + f.Name())
+				data, err := os.ReadFile(filepath.Join(serversDir, f.Name()))
 				if err == nil {
-					var host HostConfig
-					if yaml.Unmarshal(hostData, &host) == nil {
-						cfg.Hosts = append(cfg.Hosts, host)
+					var server ServerConfig
+					if yaml.Unmarshal(data, &server) == nil {
+						cfg.Servers = append(cfg.Servers, server)
+					}
+				}
+			}
+		}
+	}
+
+	files, err = os.ReadDir(jobsDir)
+	if err == nil {
+		for _, f := range files {
+			if strings.HasSuffix(f.Name(), ".yaml") || strings.HasSuffix(f.Name(), ".yml") {
+				data, err := os.ReadFile(filepath.Join(jobsDir, f.Name()))
+				if err == nil {
+					var job JobConfig
+					if yaml.Unmarshal(data, &job) == nil {
+						cfg.Jobs = append(cfg.Jobs, job)
 					}
 				}
 			}
@@ -63,16 +91,18 @@ func LoadConfig(basePath string) Config {
 	return cfg
 }
 
-// WriteHostConfig dynamically generates a YAML file for a single host in the conf.d/ directory
-func WriteHostConfig(confDir string, host HostConfig) error {
+func WriteServerConfig(confDir string, server ServerConfig) error {
+	dir := filepath.Join(confDir, "servers")
+	os.MkdirAll(dir, 0755)
+	data, err := yaml.Marshal(server)
+	if err != nil { return err }
+	return os.WriteFile(filepath.Join(dir, server.Name+".yaml"), data, 0644)
+}
 
-	os.MkdirAll(confDir, 0755)
-
-	data, err := yaml.Marshal(host)
-	if err != nil {
-		return err
-	}
-
-	filename := confDir + "/" + host.Name + ".yaml"
-	return os.WriteFile(filename, data, 0644)
+func WriteJobConfig(confDir string, job JobConfig) error {
+	dir := filepath.Join(confDir, "jobs")
+	os.MkdirAll(dir, 0755)
+	data, err := yaml.Marshal(job)
+	if err != nil { return err }
+	return os.WriteFile(filepath.Join(dir, job.Name+".yaml"), data, 0644)
 }

@@ -45,21 +45,19 @@ var listHostsCmd = &cobra.Command{
 		defer conn.Close()
 		
 		client := pb.NewBackupServiceClient(conn)
-		resp, err := client.ListHosts(context.Background(), &pb.ListRequest{})
+		resp, err := client.ListServers(context.Background(), &pb.ListRequest{})
 		if err != nil { log.Fatalf("❌ RPC Error: %v", err) }
 
-		if len(resp.Hosts) == 0 {
+		if len(resp.Servers) == 0 {
 			fmt.Println("No configured backup hosts found.")
 			return
 		}
 
 		w := tabwriter.NewWriter(os.Stdout, 0, 8, 4, ' ', 0)
-		fmt.Fprintln(w, "HOST\tADDRESS\tSCHEDULE\tRETENTION")
-		fmt.Fprintln(w, "----\t-------\t--------\t---------")
-		for _, h := range resp.Hosts {
-			schedule := h.Schedule
-			if schedule == "" { schedule = "Manual Only" }
-			fmt.Fprintf(w, "%s\t%s\t%s\t%d\n", h.Name, h.Address, schedule, h.RetentionCount)
+		fmt.Fprintln(w, "SERVER\tGROUP\tADDRESS\tPORT\tSUDO")
+		fmt.Fprintln(w, "------\t-----\t-------\t----\t----")
+		for _, h := range resp.Servers {
+			fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%v\n", h.Name, h.Group, h.Address, h.Port, h.UseSudo)
 		}
 		w.Flush()
 	},
@@ -109,7 +107,7 @@ var listBackupsCmd = &cobra.Command{
 		fmt.Fprintln(w, "HOST	TYPE	ARCHIVE	SIZE	MODIFIED")
 		fmt.Fprintln(w, "----	----	-------	----	--------")
 		for _, a := range filteredArchives {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", a.Host, a.Type, a.Filename, formatSize(a.Size), a.Modified)
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", a.Job, a.Type, a.Filename, formatSize(a.Size), a.Modified)
 		}
 		w.Flush()
 	},
@@ -121,4 +119,30 @@ func init() {
 	listBackupsCmd.Flags().BoolVar(&filterDocker, "docker", false, "Filter to show only DOCKER backups")
 	listCmd.AddCommand(listBackupsCmd)
 	rootCmd.AddCommand(listCmd)
+}
+
+var listJobsCmd = &cobra.Command{
+	Use:   "jobs",
+	Short: "List all configured backup jobs",
+	Run: func(cmd *cobra.Command, args []string) {
+		cfg := LoadClientConfig()
+		opts := []grpc.DialOption{
+			grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})),
+			grpc.WithPerRPCCredentials(tokenAuth{token: cfg.Token}),
+		}
+		conn, err := grpc.Dial(cfg.ServerAddress, opts...)
+		if err != nil { log.Fatalf("❌ Failed to connect: %v", err) }
+		defer conn.Close()
+		client := pb.NewBackupServiceClient(conn)
+		resp, err := client.ListJobs(context.Background(), &pb.ListRequest{})
+		if err != nil { log.Fatalf("❌ Failed to list jobs: %v", err) }
+		if len(resp.Jobs) == 0 { fmt.Println("No jobs configured."); return }
+		w := tabwriter.NewWriter(os.Stdout, 0, 8, 4, ' ', 0)
+		fmt.Fprintln(w, "JOB\tSERVER\tSCHEDULE\tRETENTION")
+		fmt.Fprintln(w, "---\t------\t--------\t---------")
+		for _, j := range resp.Jobs {
+			fmt.Fprintf(w, "%s\t%s\t%s\t%d\n", j.Name, j.Server, j.Schedule, j.RetentionCount)
+		}
+		w.Flush()
+	},
 }

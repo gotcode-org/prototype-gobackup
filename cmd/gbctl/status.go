@@ -65,7 +65,7 @@ var statusCmd = &cobra.Command{
 				if i >= 15 {
 					break
 				}
-				fmt.Fprintf(w, "%s\t%s\t%s\n", job.Host, job.NextRun, job.Schedule)
+				fmt.Fprintf(w, "%s\t%s\t%s\n", job.Job, job.NextRun, job.Schedule)
 			}
 			w.Flush()
 			if len(resp.UpcomingJobs) > 15 {

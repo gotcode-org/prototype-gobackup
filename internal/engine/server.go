@@ -14,8 +14,6 @@ import (
 	"os"
 	
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/credentials"
 	
 	pb "gobackup/internal/grpc/pb"
@@ -78,45 +76,16 @@ func (s *Server) Start(port int, creds credentials.TransportCredentials) error {
 // --- BackupService Implementation ---
 
 func (s *Server) StartBackup(ctx context.Context, req *pb.BackupRequest) (*pb.BackupResponse, error) {
-	log.Printf("Received StartBackup request for target: %s", req.Target)
-	
-	if req.Target == "" || req.Target == "all" {
-		go func() {
-			daemonUI := &DaemonLogger{hostName: "Global"}
-			RunBackups(s.cfg, daemonUI)
-		}()
-		return &pb.BackupResponse{
-			Success: true,
-			Message: "Global backup initiated for all hosts",
-			JobId:   "job-all",
-		}, nil
-	}
-
-	var targetHost *HostConfig
-	for _, h := range s.cfg.Hosts {
-		if h.Name == req.Target {
-			targetHost = &h
-			break
+	for _, job := range s.cfg.Jobs {
+		if job.Name == req.Target {
+			go func(j JobConfig) {
+				daemonUI := &DaemonLogger{hostName: j.Name}
+				RunSingleBackup(s.cfg, j, daemonUI)
+			}(job)
+			return &pb.BackupResponse{Success: true, Message: "Job started"}, nil
 		}
 	}
-	
-	if targetHost == nil {
-		return nil, status.Errorf(codes.NotFound, "host %s not found in configuration", req.Target)
-	}
-
-	// Kick off the backup asynchronously in the background
-	go func(h HostConfig) {
-		daemonUI := &DaemonLogger{hostName: h.Name}
-		RunSingleBackup(s.cfg, h, daemonUI)
-		daemonUI.SetStatus("Backup Complete!", false)
-		daemonUI.Summary("🎉 Backup job complete!")
-	}(*targetHost)
-
-	return &pb.BackupResponse{
-		Success: true,
-		Message: fmt.Sprintf("Backup initiated for %s", req.Target),
-		JobId:   "job-" + req.Target,
-	}, nil
+	return nil, fmt.Errorf("job %s not found", req.Target)
 }
 
 func (s *Server) WatchLogs(req *pb.WatchRequest, stream pb.BackupService_WatchLogsServer) error {
@@ -158,65 +127,66 @@ func (s *Server) GenerateToken(ctx context.Context, req *pb.GenerateTokenRequest
 	}, nil
 }
 
-func (s *Server) AddHost(ctx context.Context, req *pb.AddHostRequest) (*pb.AddHostResponse, error) {
-	log.Printf("Received AddHost request for %s", req.Name)
+func (s *Server) AddServer(ctx context.Context, req *pb.AddServerRequest) (*pb.GenericResponse, error) {
+	srv := ServerConfig{
+		Name:    req.Name,
+		Group:   req.Group,
+		Address: req.Address,
+		Port:    int(req.Port),
+		UseSudo: req.UseSudo,
+	}
+	s.cfg.Servers = append(s.cfg.Servers, srv)
+	if err := WriteServerConfig(s.cfg.ConfDir, srv); err != nil {
+		return nil, fmt.Errorf("failed to save server config: %v", err)
+	}
+	return &pb.GenericResponse{Success: true, Message: "Server added successfully"}, nil
+}
 
-	host := HostConfig{
+func (s *Server) AddJob(ctx context.Context, req *pb.AddJobRequest) (*pb.GenericResponse, error) {
+	job := JobConfig{
 		Name:           req.Name,
-		Group:          req.Group,
-		Address:        req.Address,
-		Port:           int(req.Port),
-		UseSudo:        req.UseSudo,
+		Server:         req.Server,
+		Schedule:       req.Schedule,
 		RetentionCount: int(req.RetentionCount),
 		Paths:          req.Paths,
 		DockerVolumes:  req.DockerVolumes,
-		Schedule:       req.Schedule,
+		PreBackup:      JobPreBackup{PauseContainers: req.PauseContainers},
 	}
-
-	if err := WriteHostConfig(s.cfg.ConfDir, host); err != nil {
-		return nil, fmt.Errorf("failed to write YAML: %v", err)
+	s.cfg.Jobs = append(s.cfg.Jobs, job)
+	if err := WriteJobConfig(s.cfg.ConfDir, job); err != nil {
+		return nil, fmt.Errorf("failed to save job config: %v", err)
 	}
-
-	if err := GitOpsSync(s.cfg.ConfDir, "chore: add backup host " + req.Name); err != nil {
-		log.Printf("GitOps sync failed (ignoring for now): %v", err)
-	}
-
-	// Hot reload the scheduler and update memory!
+	
 	if s.scheduler != nil {
 		s.scheduler.Stop()
-		
-		// Safely find the new host or update the existing one in memory
-		found := false
-		for i, h := range s.cfg.Hosts {
-			if h.Name == host.Name {
-				s.cfg.Hosts[i] = host
-				found = true
-				break
-			}
-		}
-		if !found {
-			s.cfg.Hosts = append(s.cfg.Hosts, host)
-		}
-
-		// Reboot scheduler with updated config
 		s.scheduler = NewScheduler(s.cfg)
 		s.scheduler.Start()
 	}
-
-	return &pb.AddHostResponse{
-		Success: true,
-		Message: "Host added and GitOps sync triggered successfully",
-	}, nil
+	return &pb.GenericResponse{Success: true, Message: "Job added and scheduler reloaded"}, nil
 }
 
-func (s *Server) ListHosts(ctx context.Context, req *pb.ListRequest) (*pb.ListResponse, error) {
-	var resp pb.ListResponse
-	for _, h := range s.cfg.Hosts {
-		resp.Hosts = append(resp.Hosts, &pb.HostInfo{
-			Name:           h.Name,
-			Address:        h.Address,
-			Schedule:       h.Schedule,
-			RetentionCount: int32(h.RetentionCount),
+func (s *Server) ListServers(ctx context.Context, req *pb.ListRequest) (*pb.ListServerResponse, error) {
+	var resp pb.ListServerResponse
+	for _, srv := range s.cfg.Servers {
+		resp.Servers = append(resp.Servers, &pb.ServerInfo{
+			Name:    srv.Name,
+			Group:   srv.Group,
+			Address: srv.Address,
+			Port:    int32(srv.Port),
+			UseSudo: srv.UseSudo,
+		})
+	}
+	return &resp, nil
+}
+
+func (s *Server) ListJobs(ctx context.Context, req *pb.ListRequest) (*pb.ListJobResponse, error) {
+	var resp pb.ListJobResponse
+	for _, job := range s.cfg.Jobs {
+		resp.Jobs = append(resp.Jobs, &pb.JobInfo{
+			Name:           job.Name,
+			Server:         job.Server,
+			Schedule:       job.Schedule,
+			RetentionCount: int32(job.RetentionCount),
 		})
 	}
 	return &resp, nil
@@ -225,7 +195,7 @@ func (s *Server) ListHosts(ctx context.Context, req *pb.ListRequest) (*pb.ListRe
 func (s *Server) PruneBackups(ctx context.Context, req *pb.PruneRequest) (*pb.PruneResponse, error) {
 	log.Println("Manual prune requested via gRPC")
 	ui := &DaemonLogger{hostName: "prune"}
-	CleanupOldBackups(s.cfg.BackupDir, s.cfg.Hosts, ui)
+	CleanupOldBackups(s.cfg.BackupDir, s.cfg.Jobs, ui)
 	return &pb.PruneResponse{
 		Success: true,
 		Message: "Prune complete",
@@ -260,7 +230,7 @@ func (s *Server) ListBackups(ctx context.Context, req *pb.ListBackupsRequest) (*
 			if err != nil { continue }
 			
 			resp.Archives = append(resp.Archives, &pb.BackupArchive{
-				Host:     hostName,
+				Job:     hostName,
 				Filename: f.Name(),
 				Size:     info.Size(),
 				Modified: info.ModTime().Format("2006-01-02 15:04:05"),
@@ -285,14 +255,14 @@ func (s *Server) GetStatus(ctx context.Context, req *pb.StatusRequest) (*pb.Stat
 	var upcoming []*pb.UpcomingJob
 	now := time.Now()
 
-	for _, h := range s.cfg.Hosts {
+	for _, h := range s.cfg.Jobs {
 		if h.Schedule == "" { continue }
 		
 		schedule, err := cron.ParseStandard(h.Schedule)
 		if err == nil {
 			nextRun := schedule.Next(now)
 			upcoming = append(upcoming, &pb.UpcomingJob{
-				Host:     h.Name,
+				Job:     h.Name,
 				Schedule: h.Schedule,
 				NextRun:  nextRun.Format("2006-01-02 15:04:05"),
 				NextUnix: nextRun.Unix(),
@@ -339,44 +309,49 @@ func getDiskInfo(path string) (total, free, used int64) {
 	return total, free, used
 }
 
-func (s *Server) RemoveHost(ctx context.Context, req *pb.RemoveHostRequest) (*pb.RemoveHostResponse, error) {
+func (s *Server) RemoveServer(ctx context.Context, req *pb.RemoveServerRequest) (*pb.GenericResponse, error) {
 	found := false
-	for i, h := range s.cfg.Hosts {
-		if h.Name == req.Name {
-			s.cfg.Hosts = append(s.cfg.Hosts[:i], s.cfg.Hosts[i+1:]...)
+	for i, srv := range s.cfg.Servers {
+		if srv.Name == req.Name {
+			s.cfg.Servers = append(s.cfg.Servers[:i], s.cfg.Servers[i+1:]...)
 			found = true
 			break
 		}
 	}
-	if !found {
-		return nil, fmt.Errorf("host %s not found", req.Name)
+	if !found { return nil, fmt.Errorf("server %s not found", req.Name) }
+	os.Remove(filepath.Join(s.cfg.ConfDir, "servers", req.Name+".yaml"))
+	return &pb.GenericResponse{Success: true, Message: "Server removed"}, nil
+}
+
+func (s *Server) RemoveJob(ctx context.Context, req *pb.RemoveJobRequest) (*pb.GenericResponse, error) {
+	found := false
+	for i, job := range s.cfg.Jobs {
+		if job.Name == req.Name {
+			s.cfg.Jobs = append(s.cfg.Jobs[:i], s.cfg.Jobs[i+1:]...)
+			found = true
+			break
+		}
 	}
-
-	confFile := filepath.Join(s.cfg.ConfDir, req.Name+".yaml")
-	os.Remove(confFile)
-
+	if !found { return nil, fmt.Errorf("job %s not found", req.Name) }
+	os.Remove(filepath.Join(s.cfg.ConfDir, "jobs", req.Name+".yaml"))
 	if s.scheduler != nil {
 		s.scheduler.Stop()
 		s.scheduler = NewScheduler(s.cfg)
 		s.scheduler.Start()
 	}
-
-	return &pb.RemoveHostResponse{
-		Success: true,
-		Message: fmt.Sprintf("Host %s removed successfully", req.Name),
-	}, nil
+	return &pb.GenericResponse{Success: true, Message: "Job removed"}, nil
 }
 
-func (s *Server) RemoveBackup(ctx context.Context, req *pb.RemoveBackupRequest) (*pb.RemoveBackupResponse, error) {
+func (s *Server) RemoveBackup(ctx context.Context, req *pb.RemoveBackupRequest) (*pb.GenericResponse, error) {
 	// Try root backup dir
 	rootPath := filepath.Join(s.cfg.BackupDir, req.Filename)
 	if err := os.Remove(rootPath); err == nil {
-		return &pb.RemoveBackupResponse{Success: true, Message: "Backup removed."}, nil
+		return &pb.GenericResponse{Success: true, Message: "Backup removed."}, nil
 	}
 	// Try docker-volume dir
 	dockerPath := filepath.Join(s.cfg.BackupDir, "docker-volume", req.Filename)
 	if err := os.Remove(dockerPath); err == nil {
-		return &pb.RemoveBackupResponse{Success: true, Message: "Backup removed."}, nil
+		return &pb.GenericResponse{Success: true, Message: "Backup removed."}, nil
 	}
 	return nil, fmt.Errorf("backup file not found")
 }

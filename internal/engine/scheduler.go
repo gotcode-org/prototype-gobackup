@@ -22,31 +22,22 @@ func NewScheduler(cfg Config) *Scheduler {
 
 // Start loads the hosts and starts the background cron engine
 func (s *Scheduler) Start() {
-	for _, host := range s.cfg.Hosts {
-		if host.Schedule == "" {
+	for _, job := range s.cfg.Jobs {
+		if job.Schedule == "" {
 			continue // No schedule defined, skip
 		}
 		
-		// Capture the host variable for the closure
-		targetHost := host
-		
-		_, err := s.cron.AddFunc(targetHost.Schedule, func() {
-			log.Printf("⏰ CRON TRIGGERED: Starting scheduled backup for %s", targetHost.Name)
-			
-			// For now, use a basic Daemon logger that just prints to stdout.
-			// In Phase 3, this will broadcast to connected gRPC clients!
-			daemonUI := &DaemonLogger{hostName: targetHost.Name}
-			
-			// Run the backup for just this host
-			RunSingleBackup(s.cfg, targetHost, daemonUI)
-			
-			log.Printf("✅ CRON FINISHED: Backup complete for %s", targetHost.Name)
+		// Capture variable for the goroutine closure
+		j := job
+		_, err := s.cron.AddFunc(j.Schedule, func() {
+			daemonUI := &DaemonLogger{hostName: j.Name}
+			RunSingleBackup(s.cfg, j, daemonUI)
 		})
 		
 		if err != nil {
-			log.Printf("❌ Failed to schedule backup for %s: %v", targetHost.Name, err)
+			log.Printf("❌ Failed to schedule job %s: %v", j.Name, err)
 		} else {
-			log.Printf("📅 Scheduled %s -> %s", targetHost.Name, targetHost.Schedule)
+			log.Printf("🗓️  Scheduled %s for %s", j.Name, j.Schedule)
 		}
 	}
 	

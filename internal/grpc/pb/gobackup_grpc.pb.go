@@ -21,7 +21,8 @@ const _ = grpc.SupportPackageIsVersion8
 const (
 	BackupService_StartBackup_FullMethodName  = "/gobackup.BackupService/StartBackup"
 	BackupService_WatchLogs_FullMethodName    = "/gobackup.BackupService/WatchLogs"
-	BackupService_ListHosts_FullMethodName    = "/gobackup.BackupService/ListHosts"
+	BackupService_ListServers_FullMethodName  = "/gobackup.BackupService/ListServers"
+	BackupService_ListJobs_FullMethodName     = "/gobackup.BackupService/ListJobs"
 	BackupService_ListBackups_FullMethodName  = "/gobackup.BackupService/ListBackups"
 	BackupService_GetStatus_FullMethodName    = "/gobackup.BackupService/GetStatus"
 	BackupService_PruneBackups_FullMethodName = "/gobackup.BackupService/PruneBackups"
@@ -36,7 +37,8 @@ type BackupServiceClient interface {
 	// Streams real-time logs for active backups (TUI integration)
 	WatchLogs(ctx context.Context, in *WatchRequest, opts ...grpc.CallOption) (BackupService_WatchLogsClient, error)
 	// List all configured hosts
-	ListHosts(ctx context.Context, in *ListRequest, opts ...grpc.CallOption) (*ListResponse, error)
+	ListServers(ctx context.Context, in *ListRequest, opts ...grpc.CallOption) (*ListServerResponse, error)
+	ListJobs(ctx context.Context, in *ListRequest, opts ...grpc.CallOption) (*ListJobResponse, error)
 	ListBackups(ctx context.Context, in *ListBackupsRequest, opts ...grpc.CallOption) (*ListBackupsResponse, error)
 	GetStatus(ctx context.Context, in *StatusRequest, opts ...grpc.CallOption) (*StatusResponse, error)
 	// Manually trigger retention cleanup
@@ -94,10 +96,20 @@ func (x *backupServiceWatchLogsClient) Recv() (*LogChunk, error) {
 	return m, nil
 }
 
-func (c *backupServiceClient) ListHosts(ctx context.Context, in *ListRequest, opts ...grpc.CallOption) (*ListResponse, error) {
+func (c *backupServiceClient) ListServers(ctx context.Context, in *ListRequest, opts ...grpc.CallOption) (*ListServerResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ListResponse)
-	err := c.cc.Invoke(ctx, BackupService_ListHosts_FullMethodName, in, out, cOpts...)
+	out := new(ListServerResponse)
+	err := c.cc.Invoke(ctx, BackupService_ListServers_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *backupServiceClient) ListJobs(ctx context.Context, in *ListRequest, opts ...grpc.CallOption) (*ListJobResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListJobResponse)
+	err := c.cc.Invoke(ctx, BackupService_ListJobs_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +155,8 @@ type BackupServiceServer interface {
 	// Streams real-time logs for active backups (TUI integration)
 	WatchLogs(*WatchRequest, BackupService_WatchLogsServer) error
 	// List all configured hosts
-	ListHosts(context.Context, *ListRequest) (*ListResponse, error)
+	ListServers(context.Context, *ListRequest) (*ListServerResponse, error)
+	ListJobs(context.Context, *ListRequest) (*ListJobResponse, error)
 	ListBackups(context.Context, *ListBackupsRequest) (*ListBackupsResponse, error)
 	GetStatus(context.Context, *StatusRequest) (*StatusResponse, error)
 	// Manually trigger retention cleanup
@@ -161,8 +174,11 @@ func (UnimplementedBackupServiceServer) StartBackup(context.Context, *BackupRequ
 func (UnimplementedBackupServiceServer) WatchLogs(*WatchRequest, BackupService_WatchLogsServer) error {
 	return status.Errorf(codes.Unimplemented, "method WatchLogs not implemented")
 }
-func (UnimplementedBackupServiceServer) ListHosts(context.Context, *ListRequest) (*ListResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListHosts not implemented")
+func (UnimplementedBackupServiceServer) ListServers(context.Context, *ListRequest) (*ListServerResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListServers not implemented")
+}
+func (UnimplementedBackupServiceServer) ListJobs(context.Context, *ListRequest) (*ListJobResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListJobs not implemented")
 }
 func (UnimplementedBackupServiceServer) ListBackups(context.Context, *ListBackupsRequest) (*ListBackupsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListBackups not implemented")
@@ -225,20 +241,38 @@ func (x *backupServiceWatchLogsServer) Send(m *LogChunk) error {
 	return x.ServerStream.SendMsg(m)
 }
 
-func _BackupService_ListHosts_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _BackupService_ListServers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ListRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(BackupServiceServer).ListHosts(ctx, in)
+		return srv.(BackupServiceServer).ListServers(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: BackupService_ListHosts_FullMethodName,
+		FullMethod: BackupService_ListServers_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BackupServiceServer).ListHosts(ctx, req.(*ListRequest))
+		return srv.(BackupServiceServer).ListServers(ctx, req.(*ListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BackupService_ListJobs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BackupServiceServer).ListJobs(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BackupService_ListJobs_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BackupServiceServer).ListJobs(ctx, req.(*ListRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -309,8 +343,12 @@ var BackupService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _BackupService_StartBackup_Handler,
 		},
 		{
-			MethodName: "ListHosts",
-			Handler:    _BackupService_ListHosts_Handler,
+			MethodName: "ListServers",
+			Handler:    _BackupService_ListServers_Handler,
+		},
+		{
+			MethodName: "ListJobs",
+			Handler:    _BackupService_ListJobs_Handler,
 		},
 		{
 			MethodName: "ListBackups",
@@ -337,8 +375,10 @@ var BackupService_ServiceDesc = grpc.ServiceDesc{
 
 const (
 	AdminService_GenerateToken_FullMethodName = "/gobackup.AdminService/GenerateToken"
-	AdminService_AddHost_FullMethodName       = "/gobackup.AdminService/AddHost"
-	AdminService_RemoveHost_FullMethodName    = "/gobackup.AdminService/RemoveHost"
+	AdminService_AddServer_FullMethodName     = "/gobackup.AdminService/AddServer"
+	AdminService_AddJob_FullMethodName        = "/gobackup.AdminService/AddJob"
+	AdminService_RemoveServer_FullMethodName  = "/gobackup.AdminService/RemoveServer"
+	AdminService_RemoveJob_FullMethodName     = "/gobackup.AdminService/RemoveJob"
 	AdminService_RemoveBackup_FullMethodName  = "/gobackup.AdminService/RemoveBackup"
 )
 
@@ -349,9 +389,11 @@ type AdminServiceClient interface {
 	// Requires Local Socket God-Mode to generate auth tokens
 	GenerateToken(ctx context.Context, in *GenerateTokenRequest, opts ...grpc.CallOption) (*GenerateTokenResponse, error)
 	// Dynamically adds a new host configuration and triggers GitOps sync
-	AddHost(ctx context.Context, in *AddHostRequest, opts ...grpc.CallOption) (*AddHostResponse, error)
-	RemoveHost(ctx context.Context, in *RemoveHostRequest, opts ...grpc.CallOption) (*RemoveHostResponse, error)
-	RemoveBackup(ctx context.Context, in *RemoveBackupRequest, opts ...grpc.CallOption) (*RemoveBackupResponse, error)
+	AddServer(ctx context.Context, in *AddServerRequest, opts ...grpc.CallOption) (*GenericResponse, error)
+	AddJob(ctx context.Context, in *AddJobRequest, opts ...grpc.CallOption) (*GenericResponse, error)
+	RemoveServer(ctx context.Context, in *RemoveServerRequest, opts ...grpc.CallOption) (*GenericResponse, error)
+	RemoveJob(ctx context.Context, in *RemoveJobRequest, opts ...grpc.CallOption) (*GenericResponse, error)
+	RemoveBackup(ctx context.Context, in *RemoveBackupRequest, opts ...grpc.CallOption) (*GenericResponse, error)
 }
 
 type adminServiceClient struct {
@@ -372,29 +414,49 @@ func (c *adminServiceClient) GenerateToken(ctx context.Context, in *GenerateToke
 	return out, nil
 }
 
-func (c *adminServiceClient) AddHost(ctx context.Context, in *AddHostRequest, opts ...grpc.CallOption) (*AddHostResponse, error) {
+func (c *adminServiceClient) AddServer(ctx context.Context, in *AddServerRequest, opts ...grpc.CallOption) (*GenericResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(AddHostResponse)
-	err := c.cc.Invoke(ctx, AdminService_AddHost_FullMethodName, in, out, cOpts...)
+	out := new(GenericResponse)
+	err := c.cc.Invoke(ctx, AdminService_AddServer_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *adminServiceClient) RemoveHost(ctx context.Context, in *RemoveHostRequest, opts ...grpc.CallOption) (*RemoveHostResponse, error) {
+func (c *adminServiceClient) AddJob(ctx context.Context, in *AddJobRequest, opts ...grpc.CallOption) (*GenericResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(RemoveHostResponse)
-	err := c.cc.Invoke(ctx, AdminService_RemoveHost_FullMethodName, in, out, cOpts...)
+	out := new(GenericResponse)
+	err := c.cc.Invoke(ctx, AdminService_AddJob_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *adminServiceClient) RemoveBackup(ctx context.Context, in *RemoveBackupRequest, opts ...grpc.CallOption) (*RemoveBackupResponse, error) {
+func (c *adminServiceClient) RemoveServer(ctx context.Context, in *RemoveServerRequest, opts ...grpc.CallOption) (*GenericResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(RemoveBackupResponse)
+	out := new(GenericResponse)
+	err := c.cc.Invoke(ctx, AdminService_RemoveServer_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) RemoveJob(ctx context.Context, in *RemoveJobRequest, opts ...grpc.CallOption) (*GenericResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GenericResponse)
+	err := c.cc.Invoke(ctx, AdminService_RemoveJob_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) RemoveBackup(ctx context.Context, in *RemoveBackupRequest, opts ...grpc.CallOption) (*GenericResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GenericResponse)
 	err := c.cc.Invoke(ctx, AdminService_RemoveBackup_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -409,9 +471,11 @@ type AdminServiceServer interface {
 	// Requires Local Socket God-Mode to generate auth tokens
 	GenerateToken(context.Context, *GenerateTokenRequest) (*GenerateTokenResponse, error)
 	// Dynamically adds a new host configuration and triggers GitOps sync
-	AddHost(context.Context, *AddHostRequest) (*AddHostResponse, error)
-	RemoveHost(context.Context, *RemoveHostRequest) (*RemoveHostResponse, error)
-	RemoveBackup(context.Context, *RemoveBackupRequest) (*RemoveBackupResponse, error)
+	AddServer(context.Context, *AddServerRequest) (*GenericResponse, error)
+	AddJob(context.Context, *AddJobRequest) (*GenericResponse, error)
+	RemoveServer(context.Context, *RemoveServerRequest) (*GenericResponse, error)
+	RemoveJob(context.Context, *RemoveJobRequest) (*GenericResponse, error)
+	RemoveBackup(context.Context, *RemoveBackupRequest) (*GenericResponse, error)
 	mustEmbedUnimplementedAdminServiceServer()
 }
 
@@ -422,13 +486,19 @@ type UnimplementedAdminServiceServer struct {
 func (UnimplementedAdminServiceServer) GenerateToken(context.Context, *GenerateTokenRequest) (*GenerateTokenResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GenerateToken not implemented")
 }
-func (UnimplementedAdminServiceServer) AddHost(context.Context, *AddHostRequest) (*AddHostResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method AddHost not implemented")
+func (UnimplementedAdminServiceServer) AddServer(context.Context, *AddServerRequest) (*GenericResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AddServer not implemented")
 }
-func (UnimplementedAdminServiceServer) RemoveHost(context.Context, *RemoveHostRequest) (*RemoveHostResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method RemoveHost not implemented")
+func (UnimplementedAdminServiceServer) AddJob(context.Context, *AddJobRequest) (*GenericResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AddJob not implemented")
 }
-func (UnimplementedAdminServiceServer) RemoveBackup(context.Context, *RemoveBackupRequest) (*RemoveBackupResponse, error) {
+func (UnimplementedAdminServiceServer) RemoveServer(context.Context, *RemoveServerRequest) (*GenericResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RemoveServer not implemented")
+}
+func (UnimplementedAdminServiceServer) RemoveJob(context.Context, *RemoveJobRequest) (*GenericResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RemoveJob not implemented")
+}
+func (UnimplementedAdminServiceServer) RemoveBackup(context.Context, *RemoveBackupRequest) (*GenericResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RemoveBackup not implemented")
 }
 func (UnimplementedAdminServiceServer) mustEmbedUnimplementedAdminServiceServer() {}
@@ -462,38 +532,74 @@ func _AdminService_GenerateToken_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AdminService_AddHost_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(AddHostRequest)
+func _AdminService_AddServer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AddServerRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AdminServiceServer).AddHost(ctx, in)
+		return srv.(AdminServiceServer).AddServer(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: AdminService_AddHost_FullMethodName,
+		FullMethod: AdminService_AddServer_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AdminServiceServer).AddHost(ctx, req.(*AddHostRequest))
+		return srv.(AdminServiceServer).AddServer(ctx, req.(*AddServerRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AdminService_RemoveHost_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RemoveHostRequest)
+func _AdminService_AddJob_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AddJobRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AdminServiceServer).RemoveHost(ctx, in)
+		return srv.(AdminServiceServer).AddJob(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: AdminService_RemoveHost_FullMethodName,
+		FullMethod: AdminService_AddJob_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AdminServiceServer).RemoveHost(ctx, req.(*RemoveHostRequest))
+		return srv.(AdminServiceServer).AddJob(ctx, req.(*AddJobRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_RemoveServer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemoveServerRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).RemoveServer(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_RemoveServer_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).RemoveServer(ctx, req.(*RemoveServerRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_RemoveJob_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemoveJobRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).RemoveJob(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_RemoveJob_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).RemoveJob(ctx, req.(*RemoveJobRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -528,12 +634,20 @@ var AdminService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _AdminService_GenerateToken_Handler,
 		},
 		{
-			MethodName: "AddHost",
-			Handler:    _AdminService_AddHost_Handler,
+			MethodName: "AddServer",
+			Handler:    _AdminService_AddServer_Handler,
 		},
 		{
-			MethodName: "RemoveHost",
-			Handler:    _AdminService_RemoveHost_Handler,
+			MethodName: "AddJob",
+			Handler:    _AdminService_AddJob_Handler,
+		},
+		{
+			MethodName: "RemoveServer",
+			Handler:    _AdminService_RemoveServer_Handler,
+		},
+		{
+			MethodName: "RemoveJob",
+			Handler:    _AdminService_RemoveJob_Handler,
 		},
 		{
 			MethodName: "RemoveBackup",

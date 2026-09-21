@@ -15,7 +15,8 @@ service BackupService {
     // Retrieves current running jobs and daemon status
 
     // List all configured hosts
-    rpc ListHosts (ListRequest) returns (ListResponse);
+    rpc ListServers (ListRequest) returns (ListServerResponse);
+    rpc ListJobs (ListRequest) returns (ListJobResponse);
     rpc ListBackups (ListBackupsRequest) returns (ListBackupsResponse);
     rpc GetStatus (StatusRequest) returns (StatusResponse);
     // Manually trigger retention cleanup
@@ -28,9 +29,11 @@ service AdminService {
     rpc GenerateToken (GenerateTokenRequest) returns (GenerateTokenResponse);
     
     // Dynamically adds a new host configuration and triggers GitOps sync
-    rpc AddHost (AddHostRequest) returns (AddHostResponse);
-    rpc RemoveHost (RemoveHostRequest) returns (RemoveHostResponse);
-    rpc RemoveBackup (RemoveBackupRequest) returns (RemoveBackupResponse);
+    rpc AddServer (AddServerRequest) returns (GenericResponse);
+    rpc AddJob (AddJobRequest) returns (GenericResponse);
+    rpc RemoveServer (RemoveServerRequest) returns (GenericResponse);
+    rpc RemoveJob (RemoveJobRequest) returns (GenericResponse);
+    rpc RemoveBackup (RemoveBackupRequest) returns (GenericResponse);
 }
 
 // --- Messages ---
@@ -69,32 +72,7 @@ message GenerateTokenResponse {
     string token = 1;
 }
 
-message AddHostRequest {
-    string name = 1;
-    string group = 2;
-    string address = 3;
-    int32 port = 4;
-    bool use_sudo = 5;
-    int32 retention_count = 6;
-    repeated string paths = 7;
-    string schedule = 8;
-    repeated string docker_volumes = 9;
-}
-
-message AddHostResponse {
-    bool success = 1;
-    string message = 2;
-}
 message ListRequest {}
-message HostInfo {
-    string name = 1;
-    string address = 2;
-    string schedule = 3;
-    int32 retention_count = 4;
-}
-message ListResponse {
-    repeated HostInfo hosts = 1;
-}
 
 message PruneRequest {}
 message PruneResponse {
@@ -105,7 +83,7 @@ message ListBackupsRequest {
     string target = 1;
 }
 message BackupArchive {
-    string host = 1;
+    string job = 1;
     string filename = 2;
     int64 size = 3;
     string modified = 4;
@@ -117,7 +95,7 @@ message ListBackupsResponse {
 
 message StatusRequest {}
 message UpcomingJob {
-    string host = 1;
+    string job = 1;
     string schedule = 2;
     string next_run = 3;
     int64 next_unix = 4;
@@ -134,17 +112,59 @@ message StatusResponse {
     int32 total_backups = 8;
 }
 
-message RemoveHostRequest {
-    string name = 1;
-}
-message RemoveHostResponse {
-    bool success = 1;
-    string message = 2;
-}
 message RemoveBackupRequest {
     string filename = 1;
 }
-message RemoveBackupResponse {
+message GenericResponse {
     bool success = 1;
     string message = 2;
+}
+
+message AddServerRequest {
+    string name = 1;
+    string group = 2;
+    string address = 3;
+    int32 port = 4;
+    bool use_sudo = 5;
+}
+
+message AddJobRequest {
+    string name = 1;
+    string server = 2;
+    string schedule = 3;
+    int32 retention_count = 4;
+    repeated string paths = 5;
+    repeated string docker_volumes = 6;
+    repeated string pause_containers = 7;
+}
+
+message ServerInfo {
+    string name = 1;
+    string group = 2;
+    string address = 3;
+    int32 port = 4;
+    bool use_sudo = 5;
+}
+
+message JobInfo {
+    string name = 1;
+    string server = 2;
+    string schedule = 3;
+    int32 retention_count = 4;
+}
+
+message ListServerResponse {
+    repeated ServerInfo servers = 1;
+}
+
+message ListJobResponse {
+    repeated JobInfo jobs = 1;
+}
+
+message RemoveServerRequest {
+    string name = 1;
+}
+
+message RemoveJobRequest {
+    string name = 1;
 }

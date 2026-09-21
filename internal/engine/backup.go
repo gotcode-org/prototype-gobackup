@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
+	
 	"net/http"
 	"os"
 	"os/exec"
@@ -13,7 +13,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"text/tabwriter"
+	
 	"time"
 
 	"gobackup/internal/tui"
@@ -34,66 +34,9 @@ func (c *cmdLogger) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-func ListServers(cfg Config) {
-	w := tabwriter.NewWriter(os.Stdout, 0, 8, 4, ' ', 0)
-	fmt.Fprintln(w, "NAME\tGROUP\tADDRESS\tPORT\tPATHS")
-	for _, host := range cfg.Hosts {
-		port := host.Port
-		if port == 0 {
-			port = 22
-		}
-		paths := strings.Join(host.Paths, ", ")
-		fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\n", host.Name, host.Group, host.Address, port, paths)
-	}
-	w.Flush()
-}
 
-func ListBackups(cfg Config, serverName string) {
-	w := tabwriter.NewWriter(os.Stdout, 0, 8, 4, ' ', 0)
-	fmt.Fprintln(w, "NAME\tSIZE\tCREATED AT\tAGE")
 
-	files, err := os.ReadDir(cfg.BackupDir)
-	if err != nil {
-		log.Fatalf("❌ Failed to read backup directory: %v", err)
-	}
 
-	prefix := serverName + "_"
-	found := false
-
-	for _, entry := range files {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".tar.gz") {
-			continue
-		}
-		if serverName != "" && !strings.HasPrefix(entry.Name(), prefix) {
-			continue
-		}
-		
-		info, err := entry.Info()
-		if err != nil {
-			continue
-		}
-
-		found = true
-		sizeMB := float64(info.Size()) / 1024.0 / 1024.0
-		age := time.Since(info.ModTime())
-		
-		ageStr := ""
-		if age.Hours() > 24 {
-			ageStr = fmt.Sprintf("%dd", int(age.Hours()/24))
-		} else if age.Hours() >= 1 {
-			ageStr = fmt.Sprintf("%dh", int(age.Hours()))
-		} else {
-			ageStr = fmt.Sprintf("%dm", int(age.Minutes()))
-		}
-
-		fmt.Fprintf(w, "%s\t%.2f MB\t%s\t%s\n", 
-			entry.Name(), sizeMB, info.ModTime().Format("2006-01-02 15:04:05"), ageStr)
-	}
-	w.Flush()
-	if !found {
-		fmt.Println("No backups found.")
-	}
-}
 
 var GlobalBackupQueue sync.Mutex
 
@@ -134,35 +77,36 @@ func ClearActive() {
 }
 
 func RunBackups(cfg Config, ui tui.BackupUI) {
-	if err := os.MkdirAll(cfg.BackupDir, 0755); err != nil {
-		ui.Log("❌ Failed to create backup directory %s: %v", cfg.BackupDir, err)
-		return
+	for _, job := range cfg.Jobs {
+		EnqueueJob(job.Name)
+		go RunSingleBackup(cfg, job, ui)
 	}
-
-	// Pre-populate the queue so gbctl status immediately shows all pending hosts!
-	for _, host := range cfg.Hosts {
-		EnqueueJob(host.Name)
-	}
-
-	for _, host := range cfg.Hosts {
-		RunSingleBackup(cfg, host, ui)
-	}
-
-	ui.SetStatus("Running Retention Cleanup...", true)
-	ui.Summary("🧹 Cleaning up old backups...")
-	CleanupOldBackups(cfg.BackupDir, cfg.Hosts, ui)
-	ui.SetStatus("Backup Complete!", false)
-	ui.Summary("🎉 Backup job complete!")
+	CleanupOldBackups(cfg.BackupDir, cfg.Jobs, ui)
 }
 
-func RunSingleBackup(cfg Config, host HostConfig, ui tui.BackupUI) {
-	ui.SetStatus(fmt.Sprintf("Queued: %s", host.Name), true)
-	ui.Log("⏳ Job for %s entered the global queue. Waiting for active jobs to finish...", host.Name)
+func RunSingleBackup(cfg Config, job JobConfig, ui tui.BackupUI) {
+	// Alias job to host to preserve variables below
+	// But we need targetServer for ssh
+	var targetServer *ServerConfig
+	for _, srv := range cfg.Servers {
+		if srv.Name == job.Server {
+			targetServer = &srv
+			break
+		}
+	}
+	if targetServer == nil {
+		ui.Log("❌ Failed to find server for job %s", job.Name)
+		return
+	}
+	srv := *targetServer
+
+	ui.SetStatus(fmt.Sprintf("Queued: %s", job.Name), true)
+	ui.Log("⏳ Job for %s entered the global queue. Waiting for active jobs to finish...", job.Name)
 	
-	EnqueueJob(host.Name)
+	EnqueueJob(job.Name)
 
 	GlobalBackupQueue.Lock()
-	DequeueAndSetActive(host.Name)
+	DequeueAndSetActive(job.Name)
 
 	defer func() {
 		ClearActive()
@@ -175,83 +119,83 @@ func RunSingleBackup(cfg Config, host HostConfig, ui tui.BackupUI) {
 	}
 	
 	dockerDir := filepath.Join(cfg.BackupDir, "docker-volume")
-	if len(host.DockerVolumes) > 0 {
+	if len(job.DockerVolumes) > 0 {
 		if err := os.MkdirAll(dockerDir, 0755); err != nil {
 			ui.Log("❌ Failed to create docker-volume directory %s: %v", dockerDir, err)
 			return
 		}
 	}
 
-	if host.Port == 0 {
-		host.Port = 22
+	if srv.Port == 0 {
+		srv.Port = 22
 	}
 
 	// 1. System Backups
-	if len(host.Paths) > 0 {
+	if len(job.Paths) > 0 {
 		timestamp := time.Now().Format("20060102_150405")
-		fileName := fmt.Sprintf("%s_%s.tar.gz", host.Name, timestamp)
+		fileName := fmt.Sprintf("%s_%s.tar.gz", job.Name, timestamp)
 		targetFile := filepath.Join(cfg.BackupDir, fileName)
 
 		var cmd *exec.Cmd
-		if host.Address == "localhost" || host.Address == "127.0.0.1" || host.Address == "local" {
+		if srv.Address == "localhost" || srv.Address == "127.0.0.1" || srv.Address == "local" {
 			var args []string
-			if host.UseSudo {
+			if srv.UseSudo {
 				args = []string{"tar", "-cvzf", "-"}
-				args = append(args, host.Paths...)
+				args = append(args, job.Paths...)
 				cmd = exec.Command("sudo", args...)
 			} else {
 				args = []string{"-cvzf", "-"}
-				args = append(args, host.Paths...)
+				args = append(args, job.Paths...)
 				cmd = exec.Command("tar", args...)
 			}
 		} else {
-			args := []string{"-p", strconv.Itoa(host.Port), host.Address}
-			if host.UseSudo {
+			args := []string{"-p", strconv.Itoa(srv.Port), srv.Address}
+			if srv.UseSudo {
 				args = append(args, "sudo", "-n", "tar", "-cvzf", "-")
 			} else {
 				args = append(args, "tar", "-cvzf", "-")
 			}
-			args = append(args, host.Paths...)
+			args = append(args, job.Paths...)
 			cmd = exec.Command("ssh", args...)
 		}
 		
-		executeBackupCommand(cfg, host, ui, cmd, targetFile, "SYSTEM")
+		executeBackupCommand(cfg, job, srv, ui, cmd, targetFile, "SYSTEM")
 	}
 
 	// 2. Docker Backups
-	for _, vol := range host.DockerVolumes {
+	for _, vol := range job.DockerVolumes {
 		timestamp := time.Now().Format("20060102_150405")
-		fileName := fmt.Sprintf("%s_%s_%s.tar.gz", host.Name, vol, timestamp)
+		fileName := fmt.Sprintf("%s_%s_%s.tar.gz", job.Name, vol, timestamp)
 		targetFile := filepath.Join(dockerDir, fileName)
 
 		var cmd *exec.Cmd
 		// Docker run command over SSH
 		dockerArgs := []string{"docker", "run", "--rm", "-v", fmt.Sprintf("%s:/volume", vol), "alpine", "tar", "-cvzf", "-", "-C", "/volume", "."}
 		
-		if host.Address == "localhost" || host.Address == "127.0.0.1" || host.Address == "local" {
-			if host.UseSudo {
+		if srv.Address == "localhost" || srv.Address == "127.0.0.1" || srv.Address == "local" {
+			if srv.UseSudo {
 				args := append([]string{"-n"}, dockerArgs...)
 				cmd = exec.Command("sudo", args...)
 			} else {
 				cmd = exec.Command(dockerArgs[0], dockerArgs[1:]...)
 			}
 		} else {
-			args := []string{"-p", strconv.Itoa(host.Port), host.Address}
-			if host.UseSudo {
+			args := []string{"-p", strconv.Itoa(srv.Port), srv.Address}
+			if srv.UseSudo {
 				args = append(args, "sudo", "-n")
 			}
 			args = append(args, dockerArgs...)
 			cmd = exec.Command("ssh", args...)
 		}
 
-		executeBackupCommand(cfg, host, ui, cmd, targetFile, fmt.Sprintf("DOCKER VOLUME (%s)", vol))
+		executeBackupCommand(cfg, job, srv, ui, cmd, targetFile, fmt.Sprintf("DOCKER VOLUME (%s)", vol))
 	}
 	
 	// Prune just this host after it finishes
-	CleanupOldBackups(cfg.BackupDir, []HostConfig{host}, ui)
+	CleanupOldBackups(cfg.BackupDir, []JobConfig{job}, ui)
 }
 
-func executeBackupCommand(cfg Config, host HostConfig, ui tui.BackupUI, cmd *exec.Cmd, targetFile string, backupType string) {
+func executeBackupCommand(cfg Config, job JobConfig, srv ServerConfig, ui tui.BackupUI, cmd *exec.Cmd, targetFile string, backupType string) {
 	outFile, err := os.Create(targetFile)
 	if err != nil {
 		ui.Log("   ❌ Error creating local file: %v", err)
@@ -261,13 +205,13 @@ func executeBackupCommand(cfg Config, host HostConfig, ui tui.BackupUI, cmd *exe
 	cmd.Stderr = &cmdLogger{ui: ui} 
 
 	SendNotification(cfg.WebhookURL, 
-		fmt.Sprintf("🔄 %s Backup Started (%s)", backupType, host.Name),
-		fmt.Sprintf("Initiating tar pull natively for `%s`.", host.Name),
-		3447003, host.Name, targetFile, ui)
+		fmt.Sprintf("🔄 %s Backup Started (%s)", backupType, job.Name),
+		fmt.Sprintf("Initiating tar pull natively for `%s`.", job.Name),
+		3447003, job.Name, targetFile, ui)
 
 	startTime := time.Now()
 
-	ui.SetStatus(fmt.Sprintf("Backing up %s for host: %s (%s)", backupType, host.Name, host.Address), true)
+	ui.SetStatus(fmt.Sprintf("Backing up %s for host: %s (%s)", backupType, job.Name, srv.Address), true)
 
 	err = cmd.Run()
 	duration := time.Since(startTime).Round(time.Second)
@@ -284,11 +228,11 @@ func executeBackupCommand(cfg Config, host HostConfig, ui tui.BackupUI, cmd *exe
 
 	if exitCode != 0 && exitCode != 1 {
 		SendNotification(cfg.WebhookURL,
-			fmt.Sprintf("❌ %s Backup Failed! (%s)", backupType, host.Name),
-			fmt.Sprintf("Backup fatally failed after %s (Exit Code: %d).\n\n**Error Details:**\n```text\n%v\n```", duration, exitCode, err),
-			15158332, host.Name, targetFile, ui)
+			fmt.Sprintf("❌ %s Backup Failed! (%s)", backupType, job.Name),
+			fmt.Sprintf("Backup fatally failed after %s (Exit Code: %d).\\n\\n**Error Details:**\\n```text\\n%v\\n```", duration, exitCode, err),
+			15158332, job.Name, targetFile, ui)
 
-		ui.Summary("   ❌ %s Backup fatally failed for %s (Exit Code %d): %v", backupType, host.Name, exitCode, err)
+		ui.Summary("   ❌ %s Backup fatally failed for %s (Exit Code %d): %v", backupType, job.Name, exitCode, err)
 		os.Remove(targetFile) 
 		return
 	}
@@ -300,20 +244,20 @@ func executeBackupCommand(cfg Config, host HostConfig, ui tui.BackupUI, cmd *exe
 
 	if exitCode == 1 {
 		SendNotification(cfg.WebhookURL,
-			fmt.Sprintf("⚠️ %s Backup Completed with Warnings (%s)", backupType, host.Name),
+			fmt.Sprintf("⚠️ %s Backup Completed with Warnings (%s)", backupType, job.Name),
 			fmt.Sprintf("Archive finished in %s, but some active files changed or vanished during the backup process.\n\n**Statistics:**\n```text\nArchive Size: %s\n```", duration, sizeStr),
-			16766720, host.Name, targetFile, ui)
-		ui.Summary("   ⚠️  %s Completed with warnings (files changed) for %s (%s)", backupType, host.Name, sizeStr)
+			16766720, job.Name, targetFile, ui)
+		ui.Summary("   ⚠️  %s Completed with warnings (files changed) for %s (%s)", backupType, job.Name, sizeStr)
 	} else {
 		SendNotification(cfg.WebhookURL,
-			fmt.Sprintf("✅ %s Backup Completed (%s)", backupType, host.Name),
+			fmt.Sprintf("✅ %s Backup Completed (%s)", backupType, job.Name),
 			fmt.Sprintf("tar archive finished successfully in %s.\n\n**Statistics:**\n```text\nArchive Size: %s\n```", duration, sizeStr),
-			3066993, host.Name, targetFile, ui)
+			3066993, job.Name, targetFile, ui)
 		ui.Summary("   ✅ Success (%s)! Saved to %s (%s) in %s", backupType, targetFile, sizeStr, duration)
 	}
 }
 
-func CleanupOldBackups(dir string, hosts []HostConfig, ui tui.BackupUI) {
+func CleanupOldBackups(dir string, jobs []JobConfig, ui tui.BackupUI) {
 	dirsToClean := []string{dir, filepath.Join(dir, "docker-volume")}
 
 	for _, cleanDir := range dirsToClean {
@@ -322,8 +266,8 @@ func CleanupOldBackups(dir string, hosts []HostConfig, ui tui.BackupUI) {
 			continue // Skip if dir doesn't exist
 		}
 
-		for _, host := range hosts {
-			if host.RetentionCount <= 0 {
+		for _, job := range jobs {
+			if job.RetentionCount <= 0 {
 				continue
 			}
 
@@ -332,7 +276,7 @@ func CleanupOldBackups(dir string, hosts []HostConfig, ui tui.BackupUI) {
 				if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".tar.gz") {
 					continue
 				}
-				if prefix := host.Name + "_"; strings.HasPrefix(entry.Name(), prefix) {
+				if prefix := job.Name + "_"; strings.HasPrefix(entry.Name(), prefix) {
 					info, err := entry.Info()
 					if err == nil {
 						hostBackups = append(hostBackups, info)
@@ -344,11 +288,11 @@ func CleanupOldBackups(dir string, hosts []HostConfig, ui tui.BackupUI) {
 				return hostBackups[i].ModTime().After(hostBackups[j].ModTime())
 			})
 
-			if len(hostBackups) > host.RetentionCount {
-				for _, oldBackup := range hostBackups[host.RetentionCount:] {
+			if len(hostBackups) > job.RetentionCount {
+				for _, oldBackup := range hostBackups[job.RetentionCount:] {
 					oldPath := filepath.Join(cleanDir, oldBackup.Name())
 					os.Remove(oldPath)
-					ui.Summary("   🗑️  Pruned old backup for %s: %s", host.Name, oldBackup.Name())
+					ui.Summary("   🗑️  Pruned old backup for %s: %s", job.Name, oldBackup.Name())
 				}
 			}
 		}

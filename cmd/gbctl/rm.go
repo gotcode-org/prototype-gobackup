@@ -18,9 +18,9 @@ var rmCmd = &cobra.Command{
 	Short: "Remove resources from the GoBackup daemon",
 }
 
-var rmHostCmd = &cobra.Command{
-	Use:   "host [name]",
-	Short: "Remove a host from the configuration",
+var rmServerCmd = &cobra.Command{
+	Use:   "server [name]",
+	Short: "Remove a server from the configuration",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := LoadClientConfig()
@@ -33,7 +33,7 @@ var rmHostCmd = &cobra.Command{
 		defer conn.Close()
 		
 		client := pb.NewAdminServiceClient(conn)
-		resp, err := client.RemoveHost(context.Background(), &pb.RemoveHostRequest{Name: args[0]})
+		resp, err := client.RemoveServer(context.Background(), &pb.RemoveServerRequest{Name: args[0]})
 		if err != nil { log.Fatalf("❌ RPC Error: %v", err) }
 		fmt.Printf("✅ %s\n", resp.Message)
 	},
@@ -62,7 +62,28 @@ var rmBackupCmd = &cobra.Command{
 }
 
 func init() {
-	rmCmd.AddCommand(rmHostCmd)
+	rmCmd.AddCommand(rmServerCmd)
+	rmCmd.AddCommand(rmJobCmd)
 	rmCmd.AddCommand(rmBackupCmd)
 	rootCmd.AddCommand(rmCmd)
+}
+
+var rmJobCmd = &cobra.Command{
+	Use:   "job [name]",
+	Short: "Remove a job from the configuration",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		cfg := LoadClientConfig()
+		opts := []grpc.DialOption{
+			grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})),
+			grpc.WithPerRPCCredentials(tokenAuth{token: cfg.Token}),
+		}
+		conn, err := grpc.Dial(cfg.ServerAddress, opts...)
+		if err != nil { log.Fatalf("❌ Failed to connect: %v", err) }
+		defer conn.Close()
+		client := pb.NewAdminServiceClient(conn)
+		resp, err := client.RemoveJob(context.Background(), &pb.RemoveJobRequest{Name: args[0]})
+		if err != nil { log.Fatalf("❌ RPC Error: %v", err) }
+		fmt.Printf("✅ %s\n", resp.Message)
+	},
 }
