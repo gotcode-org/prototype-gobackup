@@ -100,6 +100,26 @@ func init() {
 	jobAddCmd.Flags().StringVar(&jobVolumes, "volumes", "", "Comma-separated list of Docker volumes to backup")
 	jobAddCmd.Flags().StringVar(&jobPause, "pause", "", "Comma-separated list of Docker containers to pause")
 	
-	jobCmd.AddCommand(jobAddCmd, jobListCmd, jobRmCmd)
+	jobCmd.AddCommand(jobAddCmd, jobListCmd, jobRmCmd, jobRunCmd)
 	rootCmd.AddCommand(jobCmd)
+}
+
+var jobRunCmd = &cobra.Command{
+	Use:   "run [name]",
+	Short: "Trigger a backup job asynchronously",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		cfg := LoadClientConfig()
+		opts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})), grpc.WithPerRPCCredentials(tokenAuth{token: cfg.Token})}
+		conn, err := grpc.Dial(cfg.ServerAddress, opts...)
+		if err != nil { log.Fatalf("❌ Failed to connect: %v", err) }
+		defer conn.Close()
+		client := pb.NewBackupServiceClient(conn)
+		
+		resp, err := client.StartBackup(context.Background(), &pb.BackupRequest{Target: args[0]})
+		if err != nil { log.Fatalf("❌ RPC Error: %v", err) }
+		
+		fmt.Printf("✅ %s\n", resp.Message)
+		fmt.Println("To watch the live log stream, run: gbctl attach")
+	},
 }
