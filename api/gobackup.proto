@@ -29,6 +29,8 @@ service AdminService {
     
     // Dynamically adds a new host configuration and triggers GitOps sync
     rpc AddHost (AddHostRequest) returns (AddHostResponse);
+    rpc RemoveHost (RemoveHostRequest) returns (RemoveHostResponse);
+    rpc RemoveBackup (RemoveBackupRequest) returns (RemoveBackupResponse);
 }
 
 // --- Messages ---
@@ -76,6 +78,7 @@ message AddHostRequest {
     int32 retention_count = 6;
     repeated string paths = 7;
     string schedule = 8;
+    repeated string docker_volumes = 9;
 }
 
 message AddHostResponse {
@@ -106,6 +109,7 @@ message BackupArchive {
     string filename = 2;
     int64 size = 3;
     string modified = 4;
+    string type = 5;
 }
 message ListBackupsResponse {
     repeated BackupArchive archives = 1;
@@ -128,4 +132,19 @@ message StatusResponse {
     int64 disk_used = 6;
     int64 disk_free = 7;
     int32 total_backups = 8;
+}
+
+message RemoveHostRequest {
+    string name = 1;
+}
+message RemoveHostResponse {
+    bool success = 1;
+    string message = 2;
+}
+message RemoveBackupRequest {
+    string filename = 1;
+}
+message RemoveBackupResponse {
+    bool success = 1;
+    string message = 2;
 }

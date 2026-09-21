@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"path/filepath"
 	"strings"
 	"time"
 	"syscall"
@@ -168,6 +169,7 @@ func (s *Server) AddHost(ctx context.Context, req *pb.AddHostRequest) (*pb.AddHo
 		UseSudo:        req.UseSudo,
 		RetentionCount: int(req.RetentionCount),
 		Paths:          req.Paths,
+		DockerVolumes:  req.DockerVolumes,
 		Schedule:       req.Schedule,
 	}
 
@@ -232,16 +234,21 @@ func (s *Server) PruneBackups(ctx context.Context, req *pb.PruneRequest) (*pb.Pr
 func (s *Server) ListBackups(ctx context.Context, req *pb.ListBackupsRequest) (*pb.ListBackupsResponse, error) {
 	var resp pb.ListBackupsResponse
 	
-	entries, err := os.ReadDir(s.cfg.BackupDir)
-	if err != nil {
-		return &resp, nil
+	dirs := []struct{ Path, Type string }{
+		{s.cfg.BackupDir, "SYSTEM"},
+		{filepath.Join(s.cfg.BackupDir, "docker-volume"), "DOCKER"},
 	}
 
-	for _, f := range entries {
-		if f.IsDir() { continue }
-		
-		if strings.HasSuffix(f.Name(), ".tar.gz") {
-			// Filename format: hostname_timestamp.tar.gz
+	for _, d := range dirs {
+		entries, err := os.ReadDir(d.Path)
+		if err != nil {
+			continue
+		}
+
+		for _, f := range entries {
+			if f.IsDir() || !strings.HasSuffix(f.Name(), ".tar.gz") {
+				continue
+			}
 			parts := strings.Split(f.Name(), "_")
 			hostName := parts[0]
 
@@ -257,9 +264,17 @@ func (s *Server) ListBackups(ctx context.Context, req *pb.ListBackupsRequest) (*
 				Filename: f.Name(),
 				Size:     info.Size(),
 				Modified: info.ModTime().Format("2006-01-02 15:04:05"),
+				Type:     d.Type,
 			})
 		}
 	}
+	
+	// Sort by mod time descending (newest first) inside the RPC if needed, 
+	// but currently the slice is not sorted here. We'll let the client sort or sort here:
+	sort.Slice(resp.Archives, func(i, j int) bool {
+		return resp.Archives[i].Modified > resp.Archives[j].Modified
+	})
+	
 	return &resp, nil
 }
 
@@ -322,4 +337,46 @@ func getDiskInfo(path string) (total, free, used int64) {
 	free = int64(stat.Bavail) * int64(stat.Bsize)
 	used = total - free
 	return total, free, used
+}
+
+func (s *Server) RemoveHost(ctx context.Context, req *pb.RemoveHostRequest) (*pb.RemoveHostResponse, error) {
+	found := false
+	for i, h := range s.cfg.Hosts {
+		if h.Name == req.Name {
+			s.cfg.Hosts = append(s.cfg.Hosts[:i], s.cfg.Hosts[i+1:]...)
+			found = true
+			break
+		}
+	}
+	if !found {
+		return nil, fmt.Errorf("host %s not found", req.Name)
+	}
+
+	confFile := filepath.Join(s.cfg.ConfDir, req.Name+".yaml")
+	os.Remove(confFile)
+
+	if s.scheduler != nil {
+		s.scheduler.Stop()
+		s.scheduler = NewScheduler(s.cfg)
+		s.scheduler.Start()
+	}
+
+	return &pb.RemoveHostResponse{
+		Success: true,
+		Message: fmt.Sprintf("Host %s removed successfully", req.Name),
+	}, nil
+}
+
+func (s *Server) RemoveBackup(ctx context.Context, req *pb.RemoveBackupRequest) (*pb.RemoveBackupResponse, error) {
+	// Try root backup dir
+	rootPath := filepath.Join(s.cfg.BackupDir, req.Filename)
+	if err := os.Remove(rootPath); err == nil {
+		return &pb.RemoveBackupResponse{Success: true, Message: "Backup removed."}, nil
+	}
+	// Try docker-volume dir
+	dockerPath := filepath.Join(s.cfg.BackupDir, "docker-volume", req.Filename)
+	if err := os.Remove(dockerPath); err == nil {
+		return &pb.RemoveBackupResponse{Success: true, Message: "Backup removed."}, nil
+	}
+	return nil, fmt.Errorf("backup file not found")
 }

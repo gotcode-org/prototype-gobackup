@@ -15,6 +15,7 @@ import (
 )
 
 var (
+	volumes    string
 	schedule   string
 	paths      string
 	retention  int
@@ -52,6 +53,10 @@ var addHostCmd = &cobra.Command{
 		client := pb.NewAdminServiceClient(conn)
 
 		pathList := strings.Split(paths, ",")
+		volumeList := strings.Split(volumes, ",")
+		if len(volumeList) == 1 && volumeList[0] == "" {
+			volumeList = []string{}
+		}
 		if len(pathList) == 1 && pathList[0] == "" {
 			pathList = []string{}
 		}
@@ -65,6 +70,7 @@ var addHostCmd = &cobra.Command{
 			Port:        int32(sshPort),
 			Group:          group,
 			Paths:          pathList,
+			DockerVolumes:  volumeList,
 		}
 
 		resp, err := client.AddHost(context.Background(), req)
@@ -79,6 +85,7 @@ var addHostCmd = &cobra.Command{
 func init() {
 	addHostCmd.Flags().StringVarP(&schedule, "schedule", "s", "", "Cron schedule (e.g., '0 2 * * *')")
 	addHostCmd.Flags().StringVarP(&paths, "paths", "p", "/etc,/var/www", "Comma-separated paths to backup")
+	addHostCmd.Flags().StringVarP(&volumes, "volumes", "v", "", "Comma-separated Docker volumes to backup")
 	addHostCmd.Flags().IntVarP(&retention, "retention", "r", 5, "Number of backups to keep")
 	addHostCmd.Flags().BoolVar(&useSudo, "sudo", false, "Use sudo for remote tar execution")
 	addHostCmd.Flags().IntVar(&sshPort, "port", 22, "SSH port")

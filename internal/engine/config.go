@@ -25,6 +25,7 @@ type HostConfig struct {
 	Schedule       string   `yaml:"schedule"`
 	RetentionCount int      `yaml:"retention_count"`
 	Paths          []string `yaml:"paths"`
+	DockerVolumes  []string `yaml:"docker_volumes"`
 }
 
 // LoadConfig parses a base config.yaml, and then recursively reads all individual host YAMLs inside a conf.d/ directory.

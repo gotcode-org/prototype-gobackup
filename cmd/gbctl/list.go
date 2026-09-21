@@ -89,10 +89,10 @@ var listBackupsCmd = &cobra.Command{
 		}
 
 		w := tabwriter.NewWriter(os.Stdout, 0, 8, 4, ' ', 0)
-		fmt.Fprintln(w, "HOST\tARCHIVE\tSIZE\tMODIFIED")
-		fmt.Fprintln(w, "----\t-------\t----\t--------")
+		fmt.Fprintln(w, "HOST\tTYPE\tARCHIVE\tSIZE\tMODIFIED")
+		fmt.Fprintln(w, "----\t----\t-------\t----\t--------")
 		for _, a := range resp.Archives {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", a.Host, a.Filename, formatSize(a.Size), a.Modified)
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", a.Host, a.Type, a.Filename, formatSize(a.Size), a.Modified)
 		}
 		w.Flush()
 	},
