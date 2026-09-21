@@ -65,10 +65,10 @@ var jobListCmd = &cobra.Command{
 		if err != nil { log.Fatalf("❌ RPC Error: %v", err) }
 		if len(resp.Jobs) == 0 { fmt.Println("No jobs configured."); return }
 		w := tabwriter.NewWriter(os.Stdout, 0, 8, 4, ' ', 0)
-		fmt.Fprintln(w, "JOB\tSERVER\tSCHEDULE\tRETENTION")
-		fmt.Fprintln(w, "---\t------\t--------\t---------")
+		fmt.Fprintln(w, "SERVER\tJOB\tSCHEDULE\tRETENTION")
+		fmt.Fprintln(w, "------\t---\t--------\t---------")
 		for _, j := range resp.Jobs {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%d\n", j.Name, j.Server, j.Schedule, j.RetentionCount)
+			fmt.Fprintf(w, "%s\t%s\t%s\t%d\n", j.Server, j.Name, j.Schedule, j.RetentionCount)
 		}
 		w.Flush()
 	},
