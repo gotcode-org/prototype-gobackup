@@ -226,20 +226,21 @@ func RunSingleBackup(cfg Config, host HostConfig, ui tui.BackupUI) {
 
 		var cmd *exec.Cmd
 		// Docker run command over SSH
-		dockerCmdStr := fmt.Sprintf("docker run --rm -v %s:/volume alpine tar -cvzf - -C /volume .", vol)
+		dockerArgs := []string{"docker", "run", "--rm", "-v", fmt.Sprintf("%s:/volume", vol), "alpine", "tar", "-cvzf", "-", "-C", "/volume", "."}
+		
 		if host.Address == "localhost" || host.Address == "127.0.0.1" || host.Address == "local" {
 			if host.UseSudo {
-				cmd = exec.Command("sudo", "sh", "-c", dockerCmdStr)
+				args := append([]string{"-n"}, dockerArgs...)
+				cmd = exec.Command("sudo", args...)
 			} else {
-				cmd = exec.Command("sh", "-c", dockerCmdStr)
+				cmd = exec.Command(dockerArgs[0], dockerArgs[1:]...)
 			}
 		} else {
 			args := []string{"-p", strconv.Itoa(host.Port), host.Address}
 			if host.UseSudo {
-				args = append(args, "sudo", "-n", "sh", "-c", dockerCmdStr)
-			} else {
-				args = append(args, "sh", "-c", dockerCmdStr)
+				args = append(args, "sudo", "-n")
 			}
+			args = append(args, dockerArgs...)
 			cmd = exec.Command("ssh", args...)
 		}
 
