@@ -133,7 +133,7 @@ func RunSingleBackup(cfg Config, job JobConfig, ui tui.BackupUI) {
 	// 1. System Backups
 	if len(job.Paths) > 0 {
 		timestamp := time.Now().Format("20060102_150405")
-		fileName := fmt.Sprintf("%s_%s.tar.gz", job.Name, timestamp)
+		fileName := fmt.Sprintf("%s_%s_%s.tar.gz", job.Server, job.Name, timestamp)
 		targetFile := filepath.Join(cfg.BackupDir, fileName)
 
 		var cmd *exec.Cmd
@@ -165,7 +165,7 @@ func RunSingleBackup(cfg Config, job JobConfig, ui tui.BackupUI) {
 	// 2. Docker Backups
 	for _, vol := range job.DockerVolumes {
 		timestamp := time.Now().Format("20060102_150405")
-		fileName := fmt.Sprintf("%s_%s_%s.tar.gz", job.Name, vol, timestamp)
+		fileName := fmt.Sprintf("%s_%s_%s_%s.tar.gz", job.Server, job.Name, vol, timestamp)
 		targetFile := filepath.Join(dockerDir, fileName)
 
 		var cmd *exec.Cmd
@@ -276,7 +276,7 @@ func CleanupOldBackups(dir string, jobs []JobConfig, ui tui.BackupUI) {
 				if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".tar.gz") {
 					continue
 				}
-				if prefix := job.Name + "_"; strings.HasPrefix(entry.Name(), prefix) {
+				if prefix := job.Server + "_" + job.Name + "_"; strings.HasPrefix(entry.Name(), prefix) {
 					info, err := entry.Info()
 					if err == nil {
 						hostBackups = append(hostBackups, info)

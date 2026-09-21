@@ -53,7 +53,7 @@ var backupListCmd = &cobra.Command{
 		fmt.Fprintln(w, "JOB\tTYPE\tARCHIVE\tSIZE\tMODIFIED")
 		fmt.Fprintln(w, "---\t----\t-------\t----\t--------")
 		for _, a := range filtered {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", a.Job, a.Type, a.Filename, formatSize(a.Size), a.Modified)
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", a.Job, a.Server, a.Type, a.Filename, formatSize(a.Size), a.Modified)
 		}
 		w.Flush()
 	},
