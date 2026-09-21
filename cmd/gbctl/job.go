@@ -75,9 +75,9 @@ var jobListCmd = &cobra.Command{
 }
 
 var jobRmCmd = &cobra.Command{
-	Use:   "rm [name]",
+	Use:   "rm [server] [name]",
 	Short: "Remove a job",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := LoadClientConfig()
 		opts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})), grpc.WithPerRPCCredentials(tokenAuth{token: cfg.Token})}
@@ -85,7 +85,7 @@ var jobRmCmd = &cobra.Command{
 		if err != nil { log.Fatalf("❌ Failed to connect: %v", err) }
 		defer conn.Close()
 		client := pb.NewAdminServiceClient(conn)
-		resp, err := client.RemoveJob(context.Background(), &pb.RemoveJobRequest{Name: args[0]})
+		resp, err := client.RemoveJob(context.Background(), &pb.RemoveJobRequest{Server: args[0], Name: args[1]})
 		if err != nil { log.Fatalf("❌ RPC Error: %v", err) }
 		fmt.Printf("✅ %s\n", resp.Message)
 	},
@@ -105,9 +105,10 @@ func init() {
 }
 
 var jobRunCmd = &cobra.Command{
-	Use:   "run [name]",
-	Short: "Trigger a backup job asynchronously",
-	Args:  cobra.ExactArgs(1),
+	Use:   "run [server] [name]",
+	Short: "Trigger backup jobs asynchronously",
+	Long:  "Usage:\n  gbctl job run                     (Run all jobs)\n  gbctl job run <server>            (Run all jobs for server)\n  gbctl job run <server> <job>      (Run specific job)",
+	Args:  cobra.MaximumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := LoadClientConfig()
 		opts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})), grpc.WithPerRPCCredentials(tokenAuth{token: cfg.Token})}
@@ -116,7 +117,11 @@ var jobRunCmd = &cobra.Command{
 		defer conn.Close()
 		client := pb.NewBackupServiceClient(conn)
 		
-		resp, err := client.StartBackup(context.Background(), &pb.BackupRequest{Target: args[0]})
+		req := &pb.BackupRequest{}
+		if len(args) >= 1 { req.TargetServer = args[0] }
+		if len(args) == 2 { req.TargetJob = args[1] }
+		
+		resp, err := client.StartBackup(context.Background(), req)
 		if err != nil { log.Fatalf("❌ RPC Error: %v", err) }
 		
 		fmt.Printf("✅ %s\n", resp.Message)

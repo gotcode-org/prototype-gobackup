@@ -39,7 +39,8 @@ service AdminService {
 // --- Messages ---
 
 message BackupRequest {
-    string target = 1; // "kvm01" or "production_group"
+    string target_server = 1;
+    string target_job = 2;
 }
 
 message BackupResponse {
@@ -168,4 +169,5 @@ message RemoveServerRequest {
 
 message RemoveJobRequest {
     string name = 1;
+    string server = 2;
 }

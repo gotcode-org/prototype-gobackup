@@ -73,15 +73,22 @@ func LoadConfig(basePath string) Config {
 		}
 	}
 
-	files, err = os.ReadDir(jobsDir)
+	serverDirs, err := os.ReadDir(jobsDir)
 	if err == nil {
-		for _, f := range files {
-			if strings.HasSuffix(f.Name(), ".yaml") || strings.HasSuffix(f.Name(), ".yml") {
-				data, err := os.ReadFile(filepath.Join(jobsDir, f.Name()))
+		for _, sd := range serverDirs {
+			if sd.IsDir() {
+				jobFiles, err := os.ReadDir(filepath.Join(jobsDir, sd.Name()))
 				if err == nil {
-					var job JobConfig
-					if yaml.Unmarshal(data, &job) == nil {
-						cfg.Jobs = append(cfg.Jobs, job)
+					for _, f := range jobFiles {
+						if strings.HasSuffix(f.Name(), ".yaml") || strings.HasSuffix(f.Name(), ".yml") {
+							data, err := os.ReadFile(filepath.Join(jobsDir, sd.Name(), f.Name()))
+							if err == nil {
+								var job JobConfig
+								if yaml.Unmarshal(data, &job) == nil {
+									cfg.Jobs = append(cfg.Jobs, job)
+								}
+							}
+						}
 					}
 				}
 			}
@@ -100,7 +107,7 @@ func WriteServerConfig(confDir string, server ServerConfig) error {
 }
 
 func WriteJobConfig(confDir string, job JobConfig) error {
-	dir := filepath.Join(confDir, "jobs")
+	dir := filepath.Join(confDir, "jobs", job.Server)
 	os.MkdirAll(dir, 0755)
 	data, err := yaml.Marshal(job)
 	if err != nil { return err }

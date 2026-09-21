@@ -76,16 +76,18 @@ func (s *Server) Start(port int, creds credentials.TransportCredentials) error {
 // --- BackupService Implementation ---
 
 func (s *Server) StartBackup(ctx context.Context, req *pb.BackupRequest) (*pb.BackupResponse, error) {
+	count := 0
 	for _, job := range s.cfg.Jobs {
-		if job.Name == req.Target {
-			go func(j JobConfig) {
-				daemonUI := &DaemonLogger{hostName: j.Name}
-				RunSingleBackup(s.cfg, j, daemonUI)
-			}(job)
-			return &pb.BackupResponse{Success: true, Message: "Job started"}, nil
-		}
+		if req.TargetServer != "" && job.Server != req.TargetServer { continue }
+		if req.TargetJob != "" && job.Name != req.TargetJob { continue }
+		count++
+		go func(j JobConfig) {
+			daemonUI := &DaemonLogger{hostName: j.Name}
+			RunSingleBackup(s.cfg, j, daemonUI)
+		}(job)
 	}
-	return nil, fmt.Errorf("job %s not found", req.Target)
+	if count == 0 { return nil, fmt.Errorf("no matching jobs found") }
+	return &pb.BackupResponse{Success: true, Message: fmt.Sprintf("Started %d jobs in the background", count)}, nil
 }
 
 func (s *Server) WatchLogs(req *pb.WatchRequest, stream pb.BackupService_WatchLogsServer) error {
@@ -327,14 +329,14 @@ func (s *Server) RemoveServer(ctx context.Context, req *pb.RemoveServerRequest) 
 func (s *Server) RemoveJob(ctx context.Context, req *pb.RemoveJobRequest) (*pb.GenericResponse, error) {
 	found := false
 	for i, job := range s.cfg.Jobs {
-		if job.Name == req.Name {
+		if job.Name == req.Name && job.Server == req.Server {
 			s.cfg.Jobs = append(s.cfg.Jobs[:i], s.cfg.Jobs[i+1:]...)
 			found = true
 			break
 		}
 	}
-	if !found { return nil, fmt.Errorf("job %s not found", req.Name) }
-	os.Remove(filepath.Join(s.cfg.ConfDir, "jobs", req.Name+".yaml"))
+	if !found { return nil, fmt.Errorf("job %s/%s not found", req.Server, req.Name) }
+	os.Remove(filepath.Join(s.cfg.ConfDir, "jobs", req.Server, req.Name+".yaml"))
 	if s.scheduler != nil {
 		s.scheduler.Stop()
 		s.scheduler = NewScheduler(s.cfg)
