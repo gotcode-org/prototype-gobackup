@@ -137,7 +137,19 @@ func (s *Server) AddServer(ctx context.Context, req *pb.AddServerRequest) (*pb.G
 		Port:    int(req.Port),
 		UseSudo: req.UseSudo,
 	}
-	s.cfg.Servers = append(s.cfg.Servers, srv)
+	
+	found := false
+	for i, existing := range s.cfg.Servers {
+		if existing.Name == srv.Name {
+			s.cfg.Servers[i] = srv
+			found = true
+			break
+		}
+	}
+	if !found {
+		s.cfg.Servers = append(s.cfg.Servers, srv)
+	}
+
 	if err := WriteServerConfig(s.cfg.ConfDir, srv); err != nil {
 		return nil, fmt.Errorf("failed to save server config: %v", err)
 	}
@@ -154,7 +166,19 @@ func (s *Server) AddJob(ctx context.Context, req *pb.AddJobRequest) (*pb.Generic
 		DockerVolumes:  req.DockerVolumes,
 		PreBackup:      JobPreBackup{PauseContainers: req.PauseContainers},
 	}
-	s.cfg.Jobs = append(s.cfg.Jobs, job)
+	
+	found := false
+	for i, existing := range s.cfg.Jobs {
+		if existing.Name == job.Name && existing.Server == job.Server {
+			s.cfg.Jobs[i] = job
+			found = true
+			break
+		}
+	}
+	if !found {
+		s.cfg.Jobs = append(s.cfg.Jobs, job)
+	}
+
 	if err := WriteJobConfig(s.cfg.ConfDir, job); err != nil {
 		return nil, fmt.Errorf("failed to save job config: %v", err)
 	}
