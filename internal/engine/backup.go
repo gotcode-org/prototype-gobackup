@@ -84,9 +84,71 @@ func RunBackups(cfg Config, ui tui.BackupUI) {
 	CleanupOldBackups(cfg.BackupDir, cfg.Jobs, ui)
 }
 
+
+func isTimeForFullBackup(backupDir string, job JobConfig, volName string) bool {
+	// Look for the newest FULL backup in backupDir
+	entries, err := os.ReadDir(backupDir)
+	if err != nil { return true }
+	
+	prefix := fmt.Sprintf("%s_%s_", job.Server, job.Name)
+	if volName != "" {
+		prefix += volName + "_"
+	}
+	prefix += "FULL_"
+	
+	var newestFull *os.FileInfo
+	
+	for _, entry := range entries {
+		if !entry.IsDir() && strings.HasPrefix(entry.Name(), prefix) {
+			info, err := entry.Info()
+			if err == nil {
+				if newestFull == nil || info.ModTime().After((*newestFull).ModTime()) {
+					newestFull = &info
+				}
+			}
+		}
+	}
+	
+	if newestFull == nil { return true } // No full backup exists
+	
+	age := time.Since((*newestFull).ModTime())
+	if job.FullInterval <= 0 { job.FullInterval = 7 }
+	if age.Hours() > float64(job.FullInterval * 24) {
+		return true // Older than interval
+	}
+	return false
+}
+
+func resetSnapshot(srv ServerConfig, job JobConfig, volName string, ui tui.BackupUI) {
+	snarFile := fmt.Sprintf("/home/backup/.gobackup/snapshots/%s_%s.snar", job.Server, job.Name)
+	if volName != "" {
+		snarFile = fmt.Sprintf("/home/backup/.gobackup/snapshots/%s_%s_%s.snar", job.Server, job.Name, volName)
+	}
+	
+	ui.Log("   ♻️ Resetting incremental chain (deleting %s)...", snarFile)
+	
+	var cmd *exec.Cmd
+	resetCmd := fmt.Sprintf("mkdir -p /home/backup/.gobackup/snapshots && rm -f %s", snarFile)
+	
+	if srv.Address == "localhost" || srv.Address == "127.0.0.1" || srv.Address == "local" {
+		if srv.UseSudo {
+			cmd = exec.Command("sudo", "sh", "-c", resetCmd)
+		} else {
+			cmd = exec.Command("sh", "-c", resetCmd)
+		}
+	} else {
+		args := []string{"-p", strconv.Itoa(srv.Port), srv.Address}
+		if srv.UseSudo {
+			args = append(args, "sudo", "sh", "-c", resetCmd)
+		} else {
+			args = append(args, "sh", "-c", resetCmd)
+		}
+		cmd = exec.Command("ssh", args...)
+	}
+	cmd.Run()
+}
+
 func RunSingleBackup(cfg Config, job JobConfig, ui tui.BackupUI) {
-	// Alias job to host to preserve variables below
-	// But we need targetServer for ssh
 	var targetServer *ServerConfig
 	for _, srv := range cfg.Servers {
 		if srv.Name == job.Server {
@@ -132,30 +194,41 @@ func RunSingleBackup(cfg Config, job JobConfig, ui tui.BackupUI) {
 
 	// 1. System Backups
 	if len(job.Paths) > 0 {
+		isFull := true
+		if job.Incremental {
+			isFull = isTimeForFullBackup(cfg.BackupDir, job, "")
+		}
+		archiveType := "FULL"
+		if job.Incremental && !isFull { archiveType = "INC" }
+		if job.Incremental && isFull { resetSnapshot(srv, job, "", ui) }
+		
 		timestamp := time.Now().Format("20060102_150405")
-		fileName := fmt.Sprintf("%s_%s_%s.tar.gz", job.Server, job.Name, timestamp)
+		fileName := fmt.Sprintf("%s_%s_%s_%s.tar.gz", job.Server, job.Name, archiveType, timestamp)
 		targetFile := filepath.Join(cfg.BackupDir, fileName)
 
 		var cmd *exec.Cmd
+		tarArgs := []string{"-cvzf", "-"}
+		if job.Incremental {
+			tarArgs = append(tarArgs, "-g", fmt.Sprintf("/home/backup/.gobackup/snapshots/%s_%s.snar", job.Server, job.Name))
+		}
+		tarArgs = append(tarArgs, job.Paths...)
+
 		if srv.Address == "localhost" || srv.Address == "127.0.0.1" || srv.Address == "local" {
 			var args []string
 			if srv.UseSudo {
-				args = []string{"tar", "-cvzf", "-"}
-				args = append(args, job.Paths...)
+				args = append([]string{"tar"}, tarArgs...)
 				cmd = exec.Command("sudo", args...)
 			} else {
-				args = []string{"-cvzf", "-"}
-				args = append(args, job.Paths...)
-				cmd = exec.Command("tar", args...)
+				cmd = exec.Command("tar", tarArgs...)
 			}
 		} else {
 			args := []string{"-p", strconv.Itoa(srv.Port), srv.Address}
 			if srv.UseSudo {
-				args = append(args, "sudo", "-n", "tar", "-cvzf", "-")
+				args = append(args, "sudo", "-n", "tar")
 			} else {
-				args = append(args, "tar", "-cvzf", "-")
+				args = append(args, "tar")
 			}
-			args = append(args, job.Paths...)
+			args = append(args, tarArgs...)
 			cmd = exec.Command("ssh", args...)
 		}
 		
@@ -164,13 +237,28 @@ func RunSingleBackup(cfg Config, job JobConfig, ui tui.BackupUI) {
 
 	// 2. Docker Backups
 	for _, vol := range job.DockerVolumes {
+		isFull := true
+		if job.Incremental {
+			isFull = isTimeForFullBackup(dockerDir, job, vol)
+		}
+		archiveType := "FULL"
+		if job.Incremental && !isFull { archiveType = "INC" }
+		if job.Incremental && isFull { resetSnapshot(srv, job, vol, ui) }
+		
 		timestamp := time.Now().Format("20060102_150405")
-		fileName := fmt.Sprintf("%s_%s_%s_%s.tar.gz", job.Server, job.Name, vol, timestamp)
+		fileName := fmt.Sprintf("%s_%s_%s_%s_%s.tar.gz", job.Server, job.Name, vol, archiveType, timestamp)
 		targetFile := filepath.Join(dockerDir, fileName)
 
 		var cmd *exec.Cmd
-		// Docker run command over SSH
-		dockerArgs := []string{"docker", "run", "--rm", "-v", fmt.Sprintf("%s:/volume", vol), "alpine", "tar", "-cvzf", "-", "-C", "/volume", "."}
+		dockerArgs := []string{"docker", "run", "--rm", "-v", fmt.Sprintf("%s:/volume:ro", vol)}
+		
+		if job.Incremental {
+			dockerArgs = append(dockerArgs, "-v", "/home/backup/.gobackup/snapshots:/snapshots")
+			dockerArgs = append(dockerArgs, "-u", "$(id -u):$(id -g)")
+			dockerArgs = append(dockerArgs, "alpine", "tar", "-cvzf", "-", "-C", "/volume", "-g", fmt.Sprintf("/snapshots/%s_%s_%s.snar", job.Server, job.Name, vol), ".")
+		} else {
+			dockerArgs = append(dockerArgs, "alpine", "tar", "-cvzf", "-", "-C", "/volume", ".")
+		}
 		
 		if srv.Address == "localhost" || srv.Address == "127.0.0.1" || srv.Address == "local" {
 			if srv.UseSudo {
