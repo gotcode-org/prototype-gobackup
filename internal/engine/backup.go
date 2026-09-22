@@ -78,7 +78,7 @@ func ClearActive() {
 
 func RunBackups(cfg Config, ui tui.BackupUI) {
 	for _, job := range cfg.Jobs {
-		EnqueueJob(job.Name)
+		EnqueueJob(job.Server + "_" + job.Name)
 		go RunSingleBackup(cfg, job, ui)
 	}
 	CleanupOldBackups(cfg.BackupDir, cfg.Jobs, ui)
@@ -156,10 +156,10 @@ func RunSingleBackup(cfg Config, job JobConfig, ui tui.BackupUI) {
 	ui.SetStatus(fmt.Sprintf("Queued: %s", job.Name), true)
 	ui.Log("⏳ Job for %s entered the global queue. Waiting for active jobs to finish...", job.Name)
 	
-	EnqueueJob(job.Name)
+	EnqueueJob(job.Server + "_" + job.Name)
 
 	GlobalBackupQueue.Lock()
-	DequeueAndSetActive(job.Name)
+	DequeueAndSetActive(job.Server + "_" + job.Name)
 
 	defer func() {
 		ClearActive()
