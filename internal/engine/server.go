@@ -435,10 +435,9 @@ func (s *Server) ListBackups(ctx context.Context, req *pb.ListBackupsRequest) (*
 		}
 	}
 	
-	// Sort by mod time descending (newest first) inside the RPC if needed, 
-	// but currently the slice is not sorted here. We'll let the client sort or sort here:
+	// Sort by filename ascending so INC falls chronologically and alphabetically under FULL
 	sort.Slice(resp.Archives, func(i, j int) bool {
-		return resp.Archives[i].Modified > resp.Archives[j].Modified
+		return resp.Archives[i].Filename < resp.Archives[j].Filename
 	})
 	
 	return &resp, nil
