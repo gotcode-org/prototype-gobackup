@@ -27,7 +27,8 @@
   ```
 * Implement concrete providers that satisfy the interface:
   * `DiscordNotifier`: Handles the existing Discord/Slack JSON payloads.
-  * `EmailNotifier`: Handles SMTP dial and generic HTML/Text email generation.
+  * `EmailNotifier`: Handles traditional SMTP dialing (e.g. internal unauthenticated relays or standard TLS).
+  * `M365GraphNotifier`: Authenticates via Microsoft Graph API (OAuth2) to natively send emails via Office 365 without relying on legacy SMTP.
   * `GenericWebhookNotifier`: Handles standard HTTP POSTs with a clean JSON schema for generic integrations.
 
 ## 3. Execution Engine Updates
