@@ -277,9 +277,9 @@ func RunSingleBackup(cfg Config, job JobConfig, ui tui.BackupUI) {
 		
 		dockerCmdStr := fmt.Sprintf("docker run --rm -v %s:/volume:ro ", vol)
 		if job.Incremental {
-			dockerCmdStr += fmt.Sprintf("-v /home/backup/.gobackup/snapshots:/snapshots -u \"$(id -u):$(id -g)\" alpine tar -cvzf - -C /volume -g /snapshots/%s_%s_%s.snar .", job.Server, job.Name, vol)
+			dockerCmdStr += fmt.Sprintf("-v /home/backup/.gobackup/snapshots:/snapshots -u \"$(id -u):$(id -g)\" debian:stable-slim tar -cvzf - -C /volume -g /snapshots/%s_%s_%s.snar .", job.Server, job.Name, vol)
 		} else {
-			dockerCmdStr += "alpine tar -cvzf - -C /volume ."
+			dockerCmdStr += "debian:stable-slim tar -cvzf - -C /volume ."
 		}
 		
 		if srv.UseSudo {
