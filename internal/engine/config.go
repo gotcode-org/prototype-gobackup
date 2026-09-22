@@ -35,6 +35,8 @@ type JobConfig struct {
 	Server         string       `yaml:"server"`
 	Schedule       string       `yaml:"schedule"`
 	RetentionCount int          `yaml:"retention_count"`
+	Incremental    bool         `yaml:"incremental"`
+	FullInterval   int          `yaml:"full_interval"`
 	Paths          []string     `yaml:"paths"`
 	DockerVolumes  []string     `yaml:"docker_volumes"`
 	PreBackup      JobPreBackup `yaml:"pre_backup"`

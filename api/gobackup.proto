@@ -90,6 +90,7 @@ message BackupArchive {
     string modified = 4;
     string type = 5;
     string server = 6;
+    string archive_type = 7;
 }
 message ListBackupsResponse {
     repeated BackupArchive archives = 1;
@@ -139,6 +140,8 @@ message AddJobRequest {
     repeated string paths = 5;
     repeated string docker_volumes = 6;
     repeated string pause_containers = 7;
+    bool incremental = 8;
+    int32 full_interval = 9;
 }
 
 message ServerInfo {

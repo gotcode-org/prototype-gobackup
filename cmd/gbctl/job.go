@@ -16,12 +16,14 @@ import (
 )
 
 var (
-	jobServer    string
-	jobSchedule  string
-	jobRetention int
-	jobPaths     string
-	jobVolumes   string
-	jobPause     string
+	jobServer       string
+	jobSchedule     string
+	jobRetention    int
+	jobPaths        string
+	jobVolumes      string
+	jobPause        string
+	jobIncremental  bool
+	jobFullInterval int
 )
 
 var jobCmd = &cobra.Command{
@@ -34,7 +36,7 @@ var jobAddCmd = &cobra.Command{
 	Short: "Add a new job",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		req := &pb.AddJobRequest{Name: args[0], Server: jobServer, Schedule: jobSchedule, RetentionCount: int32(jobRetention)}
+		req := &pb.AddJobRequest{Name: args[0], Server: jobServer, Schedule: jobSchedule, RetentionCount: int32(jobRetention), Incremental: jobIncremental, FullInterval: int32(jobFullInterval)}
 		if jobPaths != "" { req.Paths = strings.Split(jobPaths, ",") }
 		if jobVolumes != "" { req.DockerVolumes = strings.Split(jobVolumes, ",") }
 		if jobPause != "" { req.PauseContainers = strings.Split(jobPause, ",") }
@@ -98,7 +100,9 @@ func init() {
 	jobAddCmd.Flags().IntVarP(&jobRetention, "retention", "r", 7, "Number of backups to keep")
 	jobAddCmd.Flags().StringVar(&jobPaths, "paths", "", "Comma-separated list of paths to backup")
 	jobAddCmd.Flags().StringVar(&jobVolumes, "volumes", "", "Comma-separated list of Docker volumes to backup")
-	jobAddCmd.Flags().StringVar(&jobPause, "pause", "", "Comma-separated list of Docker containers to pause")
+		jobAddCmd.Flags().StringVar(&jobPause, "pause", "", "Comma-separated list of Docker containers to pause")
+	jobAddCmd.Flags().BoolVar(&jobIncremental, "incremental", false, "Enable incremental backups (tar -g)")
+	jobAddCmd.Flags().IntVar(&jobFullInterval, "full-interval", 7, "Days between FULL backups when incremental is enabled")
 	
 	jobCmd.AddCommand(jobAddCmd, jobListCmd, jobRmCmd, jobRunCmd)
 	rootCmd.AddCommand(jobCmd)

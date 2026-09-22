@@ -162,6 +162,8 @@ func (s *Server) AddJob(ctx context.Context, req *pb.AddJobRequest) (*pb.Generic
 		Server:         req.Server,
 		Schedule:       req.Schedule,
 		RetentionCount: int(req.RetentionCount),
+		Incremental:    req.Incremental,
+		FullInterval:   int(req.FullInterval),
 		Paths:          req.Paths,
 		DockerVolumes:  req.DockerVolumes,
 		PreBackup:      JobPreBackup{PauseContainers: req.PauseContainers},
