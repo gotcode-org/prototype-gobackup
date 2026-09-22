@@ -14,6 +14,20 @@
   * The pruner will operate on **Chains** rather than individual files. To guarantee a minimum of 7 days of history, the engine must always keep `(RetentionDays / 7) + 1` full chains.
   * *Example (7-Day Retention)*: On Day 8, a new Full backup is taken, starting Chain 2. However, Chain 1 (Days 1-7) CANNOT be deleted yet, otherwise the user would only have 1 day of history. On Day 15, when Chain 3 begins, Chain 1 is finally purged, ensuring the user always has between 7 and 14 days of recoverable history.
 
+
+## 2.5 Docker Volume Implementation
+* When backing up Docker Volumes, the `tar` command executes inside a disposable `alpine` container.
+* To persist the `.snar` snapshot file between runs, the engine must bind-mount the host's snapshot directory into the container.
+* Execution command format:
+  ```bash
+  docker run --rm \
+    -v "VOLUME_NAME:/data:ro" \
+    -v "/home/backup/.gobackup/snapshots:/snapshots" \
+    -u "$(id -u):$(id -g)" \
+    alpine tar -cvzf - -g /snapshots/VOLUME_NAME.snar /data
+  ```
+* The `-u` flag is critical to ensure the `.snar` file is written with the `backup` user's permissions, rather than `root`.
+
 ## 3. CLI Updates: `gbctl backup list`
 * Update the `BackupArchive` gRPC protobuf to parse out `FULL` vs `INC` types based on the filename.
 * Enhance the CLI tabular output to visually group incremental backups beneath their parent full backup to easily understand the history chain:
