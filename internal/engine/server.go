@@ -218,6 +218,8 @@ func (s *Server) ListJobs(ctx context.Context, req *pb.ListRequest) (*pb.ListJob
 			Server:         job.Server,
 			Schedule:       job.Schedule,
 			RetentionCount: int32(job.RetentionCount),
+			Incremental:    job.Incremental,
+			FullInterval:   int32(job.FullInterval),
 		})
 	}
 	return &resp, nil

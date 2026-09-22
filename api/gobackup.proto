@@ -169,6 +169,8 @@ message JobInfo {
     string server = 2;
     string schedule = 3;
     int32 retention_count = 4;
+    bool incremental = 5;
+    int32 full_interval = 6;
 }
 
 message ListServerResponse {
