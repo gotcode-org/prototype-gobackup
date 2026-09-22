@@ -250,29 +250,22 @@ func RunSingleBackup(cfg Config, job JobConfig, ui tui.BackupUI) {
 		targetFile := filepath.Join(dockerDir, fileName)
 
 		var cmd *exec.Cmd
-		dockerArgs := []string{"docker", "run", "--rm", "-v", fmt.Sprintf("%s:/volume:ro", vol)}
 		
+		dockerCmdStr := fmt.Sprintf("docker run --rm -v %s:/volume:ro ", vol)
 		if job.Incremental {
-			dockerArgs = append(dockerArgs, "-v", "/home/backup/.gobackup/snapshots:/snapshots")
-			dockerArgs = append(dockerArgs, "-u", "$(id -u):$(id -g)")
-			dockerArgs = append(dockerArgs, "alpine", "tar", "-cvzf", "-", "-C", "/volume", "-g", fmt.Sprintf("/snapshots/%s_%s_%s.snar", job.Server, job.Name, vol), ".")
+			dockerCmdStr += fmt.Sprintf("-v /home/backup/.gobackup/snapshots:/snapshots -u \"$(id -u):$(id -g)\" alpine tar -cvzf - -C /volume -g /snapshots/%s_%s_%s.snar .", job.Server, job.Name, vol)
 		} else {
-			dockerArgs = append(dockerArgs, "alpine", "tar", "-cvzf", "-", "-C", "/volume", ".")
+			dockerCmdStr += "alpine tar -cvzf - -C /volume ."
+		}
+		
+		if srv.UseSudo {
+			dockerCmdStr = "sudo -n " + dockerCmdStr
 		}
 		
 		if srv.Address == "localhost" || srv.Address == "127.0.0.1" || srv.Address == "local" {
-			if srv.UseSudo {
-				args := append([]string{"-n"}, dockerArgs...)
-				cmd = exec.Command("sudo", args...)
-			} else {
-				cmd = exec.Command(dockerArgs[0], dockerArgs[1:]...)
-			}
+			cmd = exec.Command("sh", "-c", dockerCmdStr)
 		} else {
-			args := []string{"-p", strconv.Itoa(srv.Port), srv.Address}
-			if srv.UseSudo {
-				args = append(args, "sudo", "-n")
-			}
-			args = append(args, dockerArgs...)
+			args := []string{"-p", strconv.Itoa(srv.Port), srv.Address, "sh", "-c", dockerCmdStr}
 			cmd = exec.Command("ssh", args...)
 		}
 
