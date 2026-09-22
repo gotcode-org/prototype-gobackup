@@ -388,7 +388,7 @@ func CleanupOldBackups(dir string, jobs []JobConfig, ui tui.BackupUI) {
 						// e.g. server_job_vol_FULL vs server_job_FULL
 						// We can just check the number of parts
 						parts := strings.Split(entry.Name(), "_")
-						isDockerFile := len(parts) >= 5
+						isDockerFile := len(parts) >= 6
 						
 						if vol == "" && isDockerFile { continue }
 						if vol != "" && !isDockerFile { continue }
