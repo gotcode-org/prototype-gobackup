@@ -205,13 +205,13 @@ func executeBackupCommand(cfg Config, job JobConfig, srv ServerConfig, ui tui.Ba
 	cmd.Stderr = &cmdLogger{ui: ui} 
 
 	SendNotification(cfg.WebhookURL, 
-		fmt.Sprintf("🔄 %s Backup Started (%s)", backupType, job.Name),
-		fmt.Sprintf("Initiating tar pull natively for `%s`.", job.Name),
-		3447003, job.Name, targetFile, ui)
+		fmt.Sprintf("🔄 %s Backup Started (%s/%s)", backupType, job.Server, job.Name),
+		fmt.Sprintf("Initiating tar pull natively for `%s/%s`.", job.Server, job.Name),
+		3447003, job.Server, targetFile, ui)
 
 	startTime := time.Now()
 
-	ui.SetStatus(fmt.Sprintf("Backing up %s for host: %s (%s)", backupType, job.Name, srv.Address), true)
+	ui.SetStatus(fmt.Sprintf("Backing up %s for: %s/%s (%s)", backupType, job.Server, job.Name, srv.Address), true)
 
 	err = cmd.Run()
 	duration := time.Since(startTime).Round(time.Second)
@@ -228,11 +228,11 @@ func executeBackupCommand(cfg Config, job JobConfig, srv ServerConfig, ui tui.Ba
 
 	if exitCode != 0 && exitCode != 1 {
 		SendNotification(cfg.WebhookURL,
-			fmt.Sprintf("❌ %s Backup Failed! (%s)", backupType, job.Name),
+			fmt.Sprintf("❌ %s Backup Failed! (%s/%s)", backupType, job.Server, job.Name),
 			fmt.Sprintf("Backup fatally failed after %s (Exit Code: %d).\\n\\n**Error Details:**\\n```text\\n%v\\n```", duration, exitCode, err),
-			15158332, job.Name, targetFile, ui)
+			15158332, job.Server, targetFile, ui)
 
-		ui.Summary("   ❌ %s Backup fatally failed for %s (Exit Code %d): %v", backupType, job.Name, exitCode, err)
+		ui.Summary("   ❌ %s Backup fatally failed for %s/%s (Exit Code %d): %v", backupType, job.Server, job.Name, exitCode, err)
 		os.Remove(targetFile) 
 		return
 	}
@@ -244,15 +244,15 @@ func executeBackupCommand(cfg Config, job JobConfig, srv ServerConfig, ui tui.Ba
 
 	if exitCode == 1 {
 		SendNotification(cfg.WebhookURL,
-			fmt.Sprintf("⚠️ %s Backup Completed with Warnings (%s)", backupType, job.Name),
+			fmt.Sprintf("⚠️ %s Backup Completed with Warnings (%s/%s)", backupType, job.Server, job.Name),
 			fmt.Sprintf("Archive finished in %s, but some active files changed or vanished during the backup process.\n\n**Statistics:**\n```text\nArchive Size: %s\n```", duration, sizeStr),
-			16766720, job.Name, targetFile, ui)
-		ui.Summary("   ⚠️  %s Completed with warnings (files changed) for %s (%s)", backupType, job.Name, sizeStr)
+			16766720, job.Server, targetFile, ui)
+		ui.Summary("   ⚠️  %s Completed with warnings (files changed) for %s/%s (%s)", backupType, job.Server, job.Name, sizeStr)
 	} else {
 		SendNotification(cfg.WebhookURL,
-			fmt.Sprintf("✅ %s Backup Completed (%s)", backupType, job.Name),
+			fmt.Sprintf("✅ %s Backup Completed (%s/%s)", backupType, job.Server, job.Name),
 			fmt.Sprintf("tar archive finished successfully in %s.\n\n**Statistics:**\n```text\nArchive Size: %s\n```", duration, sizeStr),
-			3066993, job.Name, targetFile, ui)
+			3066993, job.Server, targetFile, ui)
 		ui.Summary("   ✅ Success (%s)! Saved to %s (%s) in %s", backupType, targetFile, sizeStr, duration)
 	}
 }
