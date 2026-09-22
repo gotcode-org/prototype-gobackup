@@ -5,10 +5,14 @@
 * **Remote Metadata**: The native GNU tar `--listed-incremental` (`-g`) flag requires a snapshot file to track inodes and timestamps. We will store this state safely in the limited user's home directory (e.g., `/home/backup/.gobackup/snapshots/<job_name>.snar`).
 
 ## 2. Backup Execution Engine Updates
-* When a backup job triggers, the engine will determine if it should be a **Full** or **Incremental** run.
-* **Full Run**: Connect via SSH, delete the existing `.snar` file to reset the chain, and execute the backup. Save the local tarball as `SERVER_JOB_FULL_TIMESTAMP.tar.gz`.
-* **Incremental Run**: Connect via SSH, leave the `.snar` file intact so tar updates it, and execute the backup. Save the local tarball as `SERVER_JOB_INC_TIMESTAMP.tar.gz`.
-* Update the retention pruner so it doesn't delete a Full backup if newer Incremental backups still depend on it!
+* When a backup job triggers, the engine will determine if it should be a **Full** or **Incremental** run based on a 7-day cycle.
+* **Full Run (Day 1/8/15)**: Connect via SSH, delete the existing `.snar` file to reset the chain, and execute the backup. Save the local tarball as `SERVER_JOB_FULL_TIMESTAMP.tar.gz`.
+* **Incremental Run (Days 2-7)**: Connect via SSH, leave the `.snar` file intact so tar updates it, and execute the backup. Save the local tarball as `SERVER_JOB_INC_TIMESTAMP.tar.gz`.
+* **Chain-based Retention Pruning**: 
+  * GNU tar incrementals cannot be merged. If a Full backup is deleted, all subsequent incrementals are broken.
+  * Therefore, `RetentionCount` will be redefined as `RetentionDays` (enforced in 7-day increments: 7, 14, 21, etc.).
+  * The pruner will operate on **Chains** rather than individual files. To guarantee a minimum of 7 days of history, the engine must always keep `(RetentionDays / 7) + 1` full chains.
+  * *Example (7-Day Retention)*: On Day 8, a new Full backup is taken, starting Chain 2. However, Chain 1 (Days 1-7) CANNOT be deleted yet, otherwise the user would only have 1 day of history. On Day 15, when Chain 3 begins, Chain 1 is finally purged, ensuring the user always has between 7 and 14 days of recoverable history.
 
 ## 3. CLI Updates: `gbctl backup list`
 * Update the `BackupArchive` gRPC protobuf to parse out `FULL` vs `INC` types based on the filename.
