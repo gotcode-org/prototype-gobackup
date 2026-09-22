@@ -15,19 +15,17 @@ if [ ! -d "$LOCAL_DIR" ]; then
     exit 1
 fi
 
-# Ensure absolute path for binding
 ABS_PATH=$(realpath "$LOCAL_DIR")
 
-echo "📦 Creating Docker volume: $VOL_NAME"
+echo "📦 Ensuring Docker volume exists: $VOL_NAME"
 docker volume create "$VOL_NAME" > /dev/null
 
-echo "🔄 Copying data from $ABS_PATH -> $VOL_NAME (preserving permissions)..."
-# We use a temporary alpine container to mount the host path and the volume simultaneously, 
-# then use 'cp -a' to safely mirror all files, hidden files, permissions, and ownership.
+echo "🔄 Rsyncing data from $ABS_PATH -> $VOL_NAME..."
+# We spin up an alpine container, install rsync on the fly, and use it to mirror the directory.
+# This allows you to run this script multiple times to sync live changes safely!
 docker run --rm \
     -v "$ABS_PATH:/source:ro" \
     -v "$VOL_NAME:/dest" \
-    alpine sh -c "cp -a /source/. /dest/ 2>/dev/null || true"
+    alpine sh -c "apk add --no-cache rsync >/dev/null && rsync -av --delete /source/ /dest/"
 
-echo "✅ Success! All data has been migrated into the Docker volume '$VOL_NAME'."
-echo "You can now safely mount it to a container using: -v $VOL_NAME:/path/in/container"
+echo "✅ Success! All data is synchronized into the Docker volume '$VOL_NAME'."
