@@ -131,15 +131,8 @@ func resetSnapshot(srv ServerConfig, job JobConfig, volName string, ui tui.Backu
 	resetCmd := fmt.Sprintf("mkdir -p /home/backup/.gobackup/snapshots && rm -f %s", snarFile)
 	
 	if srv.Address == "localhost" || srv.Address == "127.0.0.1" || srv.Address == "local" {
-		if srv.UseSudo {
-			cmd = exec.Command("sudo", "sh", "-c", resetCmd)
-		} else {
-			cmd = exec.Command("sh", "-c", resetCmd)
-		}
+		cmd = exec.Command("sh", "-c", resetCmd)
 	} else {
-		if srv.UseSudo {
-			resetCmd = "sudo -n sh -c '" + resetCmd + "'"
-		}
 		args := []string{"-p", strconv.Itoa(srv.Port), srv.Address, resetCmd}
 		cmd = exec.Command("ssh", args...)
 	}
