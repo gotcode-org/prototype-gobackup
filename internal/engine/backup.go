@@ -204,6 +204,19 @@ func RunSingleBackup(cfg Config, job JobConfig, ui tui.BackupUI) {
 		fileName := fmt.Sprintf("%s_%s_%s_%s.tar.gz", job.Server, job.Name, archiveType, timestamp)
 		targetFile := filepath.Join(cfg.BackupDir, fileName)
 
+		// Pre-create snapshots dir just in case it doesn't exist
+		if job.Incremental {
+			mkdirCmdStr := "mkdir -p /home/backup/.gobackup/snapshots"
+			var preCmd *exec.Cmd
+			if srv.Address == "localhost" || srv.Address == "127.0.0.1" || srv.Address == "local" {
+				preCmd = exec.Command("sh", "-c", mkdirCmdStr)
+			} else {
+				preArgs := []string{"-p", strconv.Itoa(srv.Port), srv.Address, mkdirCmdStr}
+				preCmd = exec.Command("ssh", preArgs...)
+			}
+			preCmd.Run()
+		}
+
 		var cmd *exec.Cmd
 		tarArgs := []string{"-cvzf", "-"}
 		if job.Incremental {
