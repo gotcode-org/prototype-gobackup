@@ -137,12 +137,10 @@ func resetSnapshot(srv ServerConfig, job JobConfig, volName string, ui tui.Backu
 			cmd = exec.Command("sh", "-c", resetCmd)
 		}
 	} else {
-		args := []string{"-p", strconv.Itoa(srv.Port), srv.Address}
 		if srv.UseSudo {
-			args = append(args, "sudo", "sh", "-c", resetCmd)
-		} else {
-			args = append(args, "sh", "-c", resetCmd)
+			resetCmd = "sudo -n " + resetCmd
 		}
+		args := []string{"-p", strconv.Itoa(srv.Port), srv.Address, resetCmd}
 		cmd = exec.Command("ssh", args...)
 	}
 	cmd.Run()

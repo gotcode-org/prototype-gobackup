@@ -354,7 +354,7 @@ func (s *Server) RestoreBackup(req *pb.RestoreBackupRequest, stream pb.AdminServ
 		if targetServer.Address == "localhost" || targetServer.Address == "127.0.0.1" || targetServer.Address == "local" {
 			cmdMkdir = exec.Command("sh", "-c", mkdirCmd)
 		} else {
-			args := []string{"-p", strconv.Itoa(targetServer.Port), targetServer.Address, "sh", "-c", mkdirCmd}
+			args := []string{"-p", strconv.Itoa(targetServer.Port), targetServer.Address, mkdirCmd}
 			cmdMkdir = exec.Command("ssh", args...)
 		}
 		cmdMkdir.Run()
