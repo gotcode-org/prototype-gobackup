@@ -380,6 +380,7 @@ const (
 	AdminService_RemoveServer_FullMethodName  = "/gobackup.AdminService/RemoveServer"
 	AdminService_RemoveJob_FullMethodName     = "/gobackup.AdminService/RemoveJob"
 	AdminService_RemoveBackup_FullMethodName  = "/gobackup.AdminService/RemoveBackup"
+	AdminService_RestoreBackup_FullMethodName = "/gobackup.AdminService/RestoreBackup"
 )
 
 // AdminServiceClient is the client API for AdminService service.
@@ -394,6 +395,7 @@ type AdminServiceClient interface {
 	RemoveServer(ctx context.Context, in *RemoveServerRequest, opts ...grpc.CallOption) (*GenericResponse, error)
 	RemoveJob(ctx context.Context, in *RemoveJobRequest, opts ...grpc.CallOption) (*GenericResponse, error)
 	RemoveBackup(ctx context.Context, in *RemoveBackupRequest, opts ...grpc.CallOption) (*GenericResponse, error)
+	RestoreBackup(ctx context.Context, in *RestoreBackupRequest, opts ...grpc.CallOption) (AdminService_RestoreBackupClient, error)
 }
 
 type adminServiceClient struct {
@@ -464,6 +466,39 @@ func (c *adminServiceClient) RemoveBackup(ctx context.Context, in *RemoveBackupR
 	return out, nil
 }
 
+func (c *adminServiceClient) RestoreBackup(ctx context.Context, in *RestoreBackupRequest, opts ...grpc.CallOption) (AdminService_RestoreBackupClient, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &AdminService_ServiceDesc.Streams[0], AdminService_RestoreBackup_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &adminServiceRestoreBackupClient{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type AdminService_RestoreBackupClient interface {
+	Recv() (*RestoreLogChunk, error)
+	grpc.ClientStream
+}
+
+type adminServiceRestoreBackupClient struct {
+	grpc.ClientStream
+}
+
+func (x *adminServiceRestoreBackupClient) Recv() (*RestoreLogChunk, error) {
+	m := new(RestoreLogChunk)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // AdminServiceServer is the server API for AdminService service.
 // All implementations must embed UnimplementedAdminServiceServer
 // for forward compatibility
@@ -476,6 +511,7 @@ type AdminServiceServer interface {
 	RemoveServer(context.Context, *RemoveServerRequest) (*GenericResponse, error)
 	RemoveJob(context.Context, *RemoveJobRequest) (*GenericResponse, error)
 	RemoveBackup(context.Context, *RemoveBackupRequest) (*GenericResponse, error)
+	RestoreBackup(*RestoreBackupRequest, AdminService_RestoreBackupServer) error
 	mustEmbedUnimplementedAdminServiceServer()
 }
 
@@ -500,6 +536,9 @@ func (UnimplementedAdminServiceServer) RemoveJob(context.Context, *RemoveJobRequ
 }
 func (UnimplementedAdminServiceServer) RemoveBackup(context.Context, *RemoveBackupRequest) (*GenericResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RemoveBackup not implemented")
+}
+func (UnimplementedAdminServiceServer) RestoreBackup(*RestoreBackupRequest, AdminService_RestoreBackupServer) error {
+	return status.Errorf(codes.Unimplemented, "method RestoreBackup not implemented")
 }
 func (UnimplementedAdminServiceServer) mustEmbedUnimplementedAdminServiceServer() {}
 
@@ -622,6 +661,27 @@ func _AdminService_RemoveBackup_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AdminService_RestoreBackup_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(RestoreBackupRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(AdminServiceServer).RestoreBackup(m, &adminServiceRestoreBackupServer{ServerStream: stream})
+}
+
+type AdminService_RestoreBackupServer interface {
+	Send(*RestoreLogChunk) error
+	grpc.ServerStream
+}
+
+type adminServiceRestoreBackupServer struct {
+	grpc.ServerStream
+}
+
+func (x *adminServiceRestoreBackupServer) Send(m *RestoreLogChunk) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 // AdminService_ServiceDesc is the grpc.ServiceDesc for AdminService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -654,6 +714,12 @@ var AdminService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _AdminService_RemoveBackup_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "RestoreBackup",
+			Handler:       _AdminService_RestoreBackup_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "api/gobackup.proto",
 }

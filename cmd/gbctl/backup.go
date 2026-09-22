@@ -82,10 +82,41 @@ var backupRmCmd = &cobra.Command{
 
 
 
+
+var restoreDest string
+
+var backupRestoreCmd = &cobra.Command{
+	Use:   "restore [filename]",
+	Short: "Restore a backup archive to a remote directory",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		cfg := LoadClientConfig()
+		opts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})), grpc.WithPerRPCCredentials(tokenAuth{token: cfg.Token})}
+		conn, err := grpc.Dial(cfg.ServerAddress, opts...)
+		if err != nil { log.Fatalf("❌ Failed to connect: %v", err) }
+		defer conn.Close()
+		client := pb.NewAdminServiceClient(conn)
+		
+		req := &pb.RestoreBackupRequest{Filename: args[0], TargetDir: restoreDest}
+		stream, err := client.RestoreBackup(context.Background(), req)
+		if err != nil { log.Fatalf("❌ RPC Error: %v", err) }
+		
+		for {
+			chunk, err := stream.Recv()
+			if err != nil { break }
+			fmt.Print(chunk.Content)
+			if chunk.Status == "DONE" || chunk.Status == "ERROR" {
+				break
+			}
+		}
+	},
+}
+
 func init() {
 	backupListCmd.Flags().BoolVar(&filterSystem, "system", false, "Filter to show only SYSTEM backups")
 	backupListCmd.Flags().BoolVar(&filterDocker, "docker", false, "Filter to show only DOCKER backups")
 	
-	backupCmd.AddCommand(backupListCmd, backupRmCmd)
+	backupCmd.AddCommand(backupListCmd, backupRmCmd, backupRestoreCmd)
+	backupRestoreCmd.Flags().StringVar(&restoreDest, "dest", "/home/backup/RESTORE", "Target directory to restore the backup into")
 	rootCmd.AddCommand(backupCmd)
 }

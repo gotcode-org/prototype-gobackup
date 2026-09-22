@@ -1,6 +1,9 @@
 package engine
 
 import (
+	"os/exec"
+	"strconv"
+
 	"path/filepath"
 	"strings"
 	"time"
@@ -229,7 +232,159 @@ func (s *Server) PruneBackups(ctx context.Context, req *pb.PruneRequest) (*pb.Pr
 		Message: "Prune complete",
 	}, nil
 }
+
+
+func sendLog(stream pb.AdminService_RestoreBackupServer, msg string) {
+	stream.Send(&pb.RestoreLogChunk{Content: msg + "\n", Status: "RUNNING"})
+}
+
+func (s *Server) RestoreBackup(req *pb.RestoreBackupRequest, stream pb.AdminService_RestoreBackupServer) error {
+	sendLog(stream, fmt.Sprintf("🔍 Locating archive %s...", req.Filename))
+	
+	// 1. Locate the file to figure out if it's SYSTEM or DOCKER
+	var foundPath string
+	var foundType string
+	
+	dirs := []struct{ Path, Type string }{
+		{s.cfg.BackupDir, "SYSTEM"},
+		{filepath.Join(s.cfg.BackupDir, "docker-volume"), "DOCKER"},
+	}
+	for _, d := range dirs {
+		if _, err := os.Stat(filepath.Join(d.Path, req.Filename)); err == nil {
+			foundPath = d.Path
+			foundType = d.Type
+			break
+		}
+	}
+	if foundPath == "" {
+		stream.Send(&pb.RestoreLogChunk{Content: "❌ Archive not found.\n", Status: "ERROR"})
+		return nil
+	}
+	
+	// 2. Parse filename
+	parts := strings.Split(req.Filename, "_")
+	if len(parts) < 3 {
+		stream.Send(&pb.RestoreLogChunk{Content: "❌ Invalid filename format.\n", Status: "ERROR"})
+		return nil
+	}
+	serverName := parts[0]
+	jobName := parts[1]
+	
+	// Try to find the server config to get SSH details
+	var targetServer *ServerConfig
+	for _, srv := range s.cfg.Servers {
+		if srv.Name == serverName {
+			targetServer = &srv
+			break
+		}
+	}
+	if targetServer == nil {
+		stream.Send(&pb.RestoreLogChunk{Content: "❌ Server configuration not found for " + serverName + "\n", Status: "ERROR"})
+		return nil
+	}
+	
+	// 3. Resolve Chain
+	sendLog(stream, "🔗 Resolving dependency chain...")
+	entries, err := os.ReadDir(foundPath)
+	if err != nil { return err }
+	
+	var allBackups []os.FileInfo
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), serverName + "_" + jobName + "_") && strings.HasSuffix(e.Name(), ".tar.gz") {
+			// For system vs docker separation
+			p := strings.Split(e.Name(), "_")
+			isDocker := len(p) >= 5
+			if foundType == "SYSTEM" && isDocker { continue }
+			if foundType == "DOCKER" && !isDocker { continue }
+			
+			// If docker, also ensure volume name matches
+			if foundType == "DOCKER" && len(parts) >= 5 && p[2] != parts[2] { continue }
+			
+			info, err := e.Info()
+			if err == nil { allBackups = append(allBackups, info) }
+		}
+	}
+	
+	// Sort chronological
+	sort.Slice(allBackups, func(i, j int) bool {
+		return allBackups[i].ModTime().Before(allBackups[j].ModTime())
+	})
+	
+	var chainToRestore []string
+	// Find the requested file, then work backwards to the FULL backup
+	requestedIndex := -1
+	for i, b := range allBackups {
+		if b.Name() == req.Filename {
+			requestedIndex = i
+			break
+		}
+	}
+	
+	if requestedIndex == -1 {
+		stream.Send(&pb.RestoreLogChunk{Content: "❌ Archive not found in hierarchy.\n", Status: "ERROR"})
+		return nil
+	}
+	
+	for i := requestedIndex; i >= 0; i-- {
+		chainToRestore = append([]string{allBackups[i].Name()}, chainToRestore...)
+		if strings.Contains(allBackups[i].Name(), "_FULL_") {
+			break
+		}
+	}
+	
+	sendLog(stream, fmt.Sprintf("📦 Restoring %d archive(s) in sequence:", len(chainToRestore)))
+	for i, c := range chainToRestore {
+		sendLog(stream, fmt.Sprintf("   %d. %s", i+1, c))
+	}
+	
+	// 4. Execute Restore
+	for _, archiveName := range chainToRestore {
+		sendLog(stream, fmt.Sprintf("🚀 Streaming %s to remote target...", archiveName))
+		
+		fullPath := filepath.Join(foundPath, archiveName)
+		file, err := os.Open(fullPath)
+		if err != nil {
+			stream.Send(&pb.RestoreLogChunk{Content: fmt.Sprintf("❌ Failed to open %s: %v\n", archiveName, err), Status: "ERROR"})
+			return nil
+		}
+		
+		// Ensure target dir exists
+		mkdirCmd := fmt.Sprintf("mkdir -p %s", req.TargetDir)
+		var cmdMkdir *exec.Cmd
+		if targetServer.Address == "localhost" || targetServer.Address == "127.0.0.1" || targetServer.Address == "local" {
+			cmdMkdir = exec.Command("sh", "-c", mkdirCmd)
+		} else {
+			args := []string{"-p", strconv.Itoa(targetServer.Port), targetServer.Address, "sh", "-c", mkdirCmd}
+			cmdMkdir = exec.Command("ssh", args...)
+		}
+		cmdMkdir.Run()
+		
+		// Tar extract stream
+		var cmd *exec.Cmd
+		if targetServer.Address == "localhost" || targetServer.Address == "127.0.0.1" || targetServer.Address == "local" {
+			cmd = exec.Command("tar", "-xvzf", "-", "-g", "/dev/null", "-C", req.TargetDir)
+		} else {
+			args := []string{"-p", strconv.Itoa(targetServer.Port), targetServer.Address, "tar", "-xvzf", "-", "-g", "/dev/null", "-C", req.TargetDir}
+			cmd = exec.Command("ssh", args...)
+		}
+		
+		cmd.Stdin = file
+		out, err := cmd.CombinedOutput()
+		file.Close()
+		
+		if err != nil {
+			stream.Send(&pb.RestoreLogChunk{Content: fmt.Sprintf("❌ Extraction failed: %v\nOutput:\n%s\n", err, string(out)), Status: "ERROR"})
+			return nil
+		}
+		sendLog(stream, fmt.Sprintf("✅ Extraction of %s complete.", archiveName))
+	}
+	
+	stream.Send(&pb.RestoreLogChunk{Content: "\n🎉 Restore sequence entirely completed successfully!\n", Status: "DONE"})
+	return nil
+}
+
 func (s *Server) ListBackups(ctx context.Context, req *pb.ListBackupsRequest) (*pb.ListBackupsResponse, error) {
+
 	var resp pb.ListBackupsResponse
 	
 	dirs := []struct{ Path, Type string }{

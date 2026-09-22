@@ -34,9 +34,21 @@ service AdminService {
     rpc RemoveServer (RemoveServerRequest) returns (GenericResponse);
     rpc RemoveJob (RemoveJobRequest) returns (GenericResponse);
     rpc RemoveBackup (RemoveBackupRequest) returns (GenericResponse);
+    rpc RestoreBackup (RestoreBackupRequest) returns (stream RestoreLogChunk);
 }
 
 // --- Messages ---
+
+
+message RestoreBackupRequest {
+    string filename = 1;
+    string target_dir = 2;
+}
+
+message RestoreLogChunk {
+    string content = 1;
+    string status = 2;
+}
 
 message BackupRequest {
     string target_server = 1;
