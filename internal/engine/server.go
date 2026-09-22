@@ -295,7 +295,7 @@ func (s *Server) RestoreBackup(req *pb.RestoreBackupRequest, stream pb.AdminServ
 		if strings.HasPrefix(e.Name(), serverName + "_" + jobName + "_") && strings.HasSuffix(e.Name(), ".tar.gz") {
 			// For system vs docker separation
 			p := strings.Split(e.Name(), "_")
-			isDocker := len(p) >= 5
+			isDocker := len(p) >= 6
 			if foundType == "SYSTEM" && isDocker { continue }
 			if foundType == "DOCKER" && !isDocker { continue }
 			
