@@ -103,11 +103,13 @@ func init() {
 		jobAddCmd.Flags().StringVar(&jobPause, "pause", "", "Comma-separated list of Docker containers to pause")
 	jobAddCmd.Flags().BoolVar(&jobIncremental, "incremental", false, "Enable incremental backups (tar -g)")
 	jobAddCmd.Flags().IntVar(&jobFullInterval, "full-interval", 7, "Days between FULL backups when incremental is enabled")
+	jobRunCmd.Flags().BoolVar(&jobRunAttach, "attach", false, "Attach to the log stream immediately")
 	
 	jobCmd.AddCommand(jobAddCmd, jobListCmd, jobRmCmd, jobRunCmd)
 	rootCmd.AddCommand(jobCmd)
 }
 
+var jobRunAttach bool
 var jobRunCmd = &cobra.Command{
 	Use:   "run [server] [name]",
 	Short: "Trigger backup jobs asynchronously",
@@ -129,6 +131,18 @@ var jobRunCmd = &cobra.Command{
 		if err != nil { log.Fatalf("❌ RPC Error: %v", err) }
 		
 		fmt.Printf("✅ %s\n", resp.Message)
-		fmt.Println("To watch the live log stream, run: gbctl attach")
+		if jobRunAttach {
+			watchReq := &pb.WatchRequest{}
+			if len(args) == 2 { watchReq.JobId = args[1] }
+			stream, err := client.WatchLogs(context.Background(), watchReq)
+			if err != nil { log.Fatalf("❌ Stream Error: %v", err) }
+			for {
+				chunk, err := stream.Recv()
+				if err != nil { break }
+				fmt.Print(chunk.Text)
+			}
+		} else {
+			fmt.Println("To watch the live log stream, run: gbctl attach")
+		}
 	},
 }
