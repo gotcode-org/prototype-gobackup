@@ -539,15 +539,65 @@ func (s *Server) RemoveJob(ctx context.Context, req *pb.RemoveJobRequest) (*pb.G
 }
 
 func (s *Server) RemoveBackup(ctx context.Context, req *pb.RemoveBackupRequest) (*pb.GenericResponse, error) {
-	// Try root backup dir
-	rootPath := filepath.Join(s.cfg.BackupDir, req.Filename)
-	if err := os.Remove(rootPath); err == nil {
+	var foundPath string
+	dirs := []string{s.cfg.BackupDir, filepath.Join(s.cfg.BackupDir, "docker-volume")}
+	for _, d := range dirs {
+		if _, err := os.Stat(filepath.Join(d, req.Filename)); err == nil {
+			foundPath = d
+			break
+		}
+	}
+	
+	if foundPath == "" {
+		return nil, fmt.Errorf("backup file not found")
+	}
+	
+	if !strings.Contains(req.Filename, "_FULL_") {
+		os.Remove(filepath.Join(foundPath, req.Filename))
 		return &pb.GenericResponse{Success: true, Message: "Backup removed."}, nil
 	}
-	// Try docker-volume dir
-	dockerPath := filepath.Join(s.cfg.BackupDir, "docker-volume", req.Filename)
-	if err := os.Remove(dockerPath); err == nil {
-		return &pb.GenericResponse{Success: true, Message: "Backup removed."}, nil
+	
+	prefix := strings.Split(req.Filename, "_FULL_")[0] + "_"
+	entries, _ := os.ReadDir(foundPath)
+	var allBackups []os.FileInfo
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), prefix) && strings.HasSuffix(e.Name(), ".tar.gz") {
+			info, err := e.Info()
+			if err == nil { allBackups = append(allBackups, info) }
+		}
 	}
-	return nil, fmt.Errorf("backup file not found")
+	
+	sort.Slice(allBackups, func(i, j int) bool {
+		return allBackups[i].ModTime().Before(allBackups[j].ModTime())
+	})
+	
+	var filesToDelete []string
+	inTargetChain := false
+	
+	for _, b := range allBackups {
+		if b.Name() == req.Filename {
+			inTargetChain = true
+			filesToDelete = append(filesToDelete, b.Name())
+			continue
+		}
+		if inTargetChain {
+			if strings.Contains(b.Name(), "_FULL_") {
+				break
+			}
+			filesToDelete = append(filesToDelete, b.Name())
+		}
+	}
+	
+	count := 0
+	for _, f := range filesToDelete {
+		if err := os.Remove(filepath.Join(foundPath, f)); err == nil {
+			count++
+		}
+	}
+	
+	msg := "Backup removed."
+	if count > 1 {
+		msg = fmt.Sprintf("FULL backup and %d linked incremental(s) removed.", count-1)
+	}
+	return &pb.GenericResponse{Success: true, Message: msg}, nil
 }
