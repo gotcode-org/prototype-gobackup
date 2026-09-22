@@ -4,15 +4,19 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strings"
+	"time"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+
 	pb "gobackup/internal/grpc/pb"
+	"gobackup/internal/tui"
 )
 
 var (
@@ -134,12 +138,46 @@ var jobRunCmd = &cobra.Command{
 		if jobRunAttach {
 			watchReq := &pb.WatchRequest{}
 			if len(args) == 2 { watchReq.JobId = args[1] }
-			stream, err := client.WatchLogs(context.Background(), watchReq)
-			if err != nil { log.Fatalf("❌ Stream Error: %v", err) }
-			for {
-				chunk, err := stream.Recv()
-				if err != nil { break }
-				fmt.Print(chunk.Text)
+			
+			ui := tui.NewTviewUI()
+			go func() {
+				ui.Log("📡 Attaching to live daemon log stream...")
+				stream, err := client.WatchLogs(context.Background(), watchReq)
+				if err != nil {
+					ui.Log("❌ Stream Error: %v", err)
+					time.Sleep(2 * time.Second)
+					ui.Stop()
+					return
+				}
+
+				for {
+					chunk, err := stream.Recv()
+					if err == io.EOF {
+						ui.Log("🏁 Log stream ended by server.")
+						break
+					}
+					if err != nil {
+						ui.Log("❌ Connection lost: %v", err)
+						break
+					}
+
+					if chunk.IsSummary {
+						ui.Summary(chunk.Text)
+						ui.SetStatus(fmt.Sprintf("Running: %s", chunk.HostName), true)
+						if strings.Contains(chunk.Text, "Backup job complete!") || strings.Contains(chunk.Text, "Backup fatally failed") || strings.Contains(chunk.Text, "Completed with warnings") {
+							break
+						}
+					} else {
+						ui.Log("[%s] %s", chunk.HostName, chunk.Text)
+					}
+				}
+				
+				ui.SetStatus("Disconnected", false)
+				ui.Stop()
+			}()
+
+			if err := ui.Start(); err != nil {
+				log.Fatal(err)
 			}
 		} else {
 			fmt.Println("To watch the live log stream, run: gbctl attach")
