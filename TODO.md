@@ -36,3 +36,24 @@
 
 ## 4. CLI / API Integration
 * Expand the `gbctl` admin tools or configuration loader to safely parse, validate, and test these multi-channel configurations.
+
+# Phase 5: Cold Storage Archiving
+
+## 1. Multi-Tier Retention Configuration
+* Update `JobConfig` to support an optional cold storage tier:
+  ```yaml
+  cold_storage:
+    path: "/mnt/nfs-cold-storage"
+    retention_chains: 12  # Keep 12 chains (e.g., 12 weeks) in cold storage
+  ```
+
+## 2. Pruning Engine Upgrades
+* In `CleanupOldBackups()`, instead of immediately issuing an `os.Remove()` when a chain exceeds the hot `RetentionCount`, check if `cold_storage.path` is defined.
+* If defined, natively move (`os.Rename` or `io.Copy` if cross-device) the entire expiring chain (the `[FULL]` anchor and all attached `[INC]` files) to the cold storage mount.
+
+## 3. Cold Storage Lifecycle Management
+* Build a secondary sweep function (`CleanupColdStorage()`) that runs immediately after the hot sweep.
+* This sweep will chronologically group chains inside the cold storage volume and definitively `os.Remove()` them once they exceed the `cold_storage.retention_chains` limit.
+
+## 4. CLI Transparency
+* Update `gbctl backup list` so it can scan both the Hot volume and the Cold volume, visually indicating to the user whether an archive is currently in fast local storage or deep cold storage.
