@@ -251,6 +251,14 @@ func (s *Server) ListBackups(ctx context.Context, req *pb.ListBackupsRequest) (*
 			if len(parts) < 3 { continue }
 			serverName := parts[0]
 			jobName := parts[1]
+			archiveType := "FULL" // default
+			
+			for _, part := range parts {
+				if part == "FULL" || part == "INC" {
+					archiveType = part
+					break
+				}
+			}
 
 			if req.Target != "" && (serverName != req.Target && jobName != req.Target) {
 				continue
@@ -260,13 +268,15 @@ func (s *Server) ListBackups(ctx context.Context, req *pb.ListBackupsRequest) (*
 			if err != nil { continue }
 			
 			resp.Archives = append(resp.Archives, &pb.BackupArchive{
-				Server:   serverName,
-				Job:      jobName,
-				Filename: f.Name(),
-				Size:     info.Size(),
-				Modified: info.ModTime().Format("2006-01-02 15:04:05"),
-				Type:     d.Type,
+				Server:      serverName,
+				Job:         jobName,
+				Filename:    f.Name(),
+				Size:        info.Size(),
+				Modified:    info.ModTime().Format("2006-01-02 15:04:05"),
+				Type:        d.Type,
+				ArchiveType: archiveType,
 			})
+
 		}
 	}
 	

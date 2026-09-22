@@ -50,10 +50,14 @@ var backupListCmd = &cobra.Command{
 		if len(filtered) == 0 { fmt.Println("No backups found."); return }
 		
 		w := tabwriter.NewWriter(os.Stdout, 0, 8, 4, ' ', 0)
-		fmt.Fprintln(w, "SERVER\tJOB\tTYPE\tARCHIVE\tSIZE\tMODIFIED")
-		fmt.Fprintln(w, "------\t---\t----\t-------\t----\t--------")
+		fmt.Fprintln(w, "SERVER\tJOB\tARCHIVE TYPE\tARCHIVE\tSIZE\tMODIFIED")
+		fmt.Fprintln(w, "------\t---\t------------\t-------\t----\t--------")
 		for _, a := range filtered {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", a.Server, a.Job, a.Type, a.Filename, formatSize(a.Size), a.Modified)
+			typeStr := "[" + a.ArchiveType + "]"
+			if a.ArchiveType == "INC" {
+				typeStr = "  └- " + typeStr
+			}
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", a.Server, a.Job, typeStr, a.Filename, formatSize(a.Size), a.Modified)
 		}
 		w.Flush()
 	},

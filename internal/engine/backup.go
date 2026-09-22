@@ -358,34 +358,71 @@ func CleanupOldBackups(dir string, jobs []JobConfig, ui tui.BackupUI) {
 			if job.RetentionCount <= 0 {
 				continue
 			}
-
-			var hostBackups []os.FileInfo
-			for _, entry := range files {
-				if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".tar.gz") {
-					continue
-				}
-				if prefix := job.Server + "_" + job.Name + "_"; strings.HasPrefix(entry.Name(), prefix) {
-					info, err := entry.Info()
-					if err == nil {
-						hostBackups = append(hostBackups, info)
+			
+			// We track chains per volume (or "" for system)
+			vols := job.DockerVolumes
+			if len(vols) == 0 { vols = []string{""} } else { vols = append(vols, "") } // job might have both system and docker
+			
+			for _, vol := range vols {
+				var hostBackups []os.FileInfo
+				for _, entry := range files {
+					if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".tar.gz") {
+						continue
+					}
+					prefix := job.Server + "_" + job.Name + "_"
+					if vol != "" { prefix += vol + "_" }
+					
+					// To ensure we don't mix system paths with docker volumes when they share prefixes
+					if strings.HasPrefix(entry.Name(), prefix) {
+						// For system backups (vol == ""), make sure it doesn't accidentally match a docker volume
+						// e.g. server_job_vol_FULL vs server_job_FULL
+						// We can just check the number of parts
+						parts := strings.Split(entry.Name(), "_")
+						isDockerFile := len(parts) >= 5
+						
+						if vol == "" && isDockerFile { continue }
+						if vol != "" && !isDockerFile { continue }
+						
+						info, err := entry.Info()
+						if err == nil {
+							hostBackups = append(hostBackups, info)
+						}
 					}
 				}
-			}
-
-			sort.Slice(hostBackups, func(i, j int) bool {
-				return hostBackups[i].ModTime().After(hostBackups[j].ModTime())
-			})
-
-			if len(hostBackups) > job.RetentionCount {
-				for _, oldBackup := range hostBackups[job.RetentionCount:] {
-					oldPath := filepath.Join(cleanDir, oldBackup.Name())
-					os.Remove(oldPath)
-					ui.Summary("   🗑️  Pruned old backup for %s: %s", job.Name, oldBackup.Name())
+	
+				sort.Slice(hostBackups, func(i, j int) bool {
+					return hostBackups[i].ModTime().Before(hostBackups[j].ModTime()) // Oldest first
+				})
+				
+				var chains [][]os.FileInfo
+				for _, backup := range hostBackups {
+					isInc := strings.Contains(backup.Name(), "_INC_")
+					
+					if !isInc || len(chains) == 0 {
+						// Start a new chain
+						chains = append(chains, []os.FileInfo{backup})
+					} else {
+						// Append to latest chain
+						chains[len(chains)-1] = append(chains[len(chains)-1], backup)
+					}
+				}
+				
+				// Keep RetentionCount chains
+				if len(chains) > job.RetentionCount {
+					numToDelete := len(chains) - job.RetentionCount
+					for i := 0; i < numToDelete; i++ {
+						for _, oldBackup := range chains[i] {
+							oldPath := filepath.Join(cleanDir, oldBackup.Name())
+							os.Remove(oldPath)
+							ui.Summary("   🗑️  Pruned old backup for %s: %s", job.Name, oldBackup.Name())
+						}
+					}
 				}
 			}
 		}
 	}
 }
+
 
 func SendNotification(webhookURL, title, desc string, color int, hostName, targetFile string, ui tui.BackupUI) {
 	if webhookURL == "" { return }
