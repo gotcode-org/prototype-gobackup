@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"strings"
 	pb "gobackup/internal/grpc/pb"
 )
 
@@ -25,12 +26,23 @@ var backupCmd = &cobra.Command{
 }
 
 var backupListCmd = &cobra.Command{
-	Use:   "list [optional job filter]",
+	Use:   "list [host] [job] | [exact_full_backup_filename]",
 	Short: "List backup archives",
-	Args:  cobra.MaximumNArgs(1),
+	Args:  cobra.MaximumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		req := &pb.ListBackupsRequest{}
-		if len(args) > 0 { req.Target = args[0] }
+		var exactChain string
+		if len(args) == 1 {
+			if strings.HasSuffix(args[0], ".tar.gz") && strings.Contains(args[0], "_FULL_") {
+				parts := strings.Split(args[0], "_FULL_")
+				req.Target = parts[0] + "_"
+				exactChain = args[0]
+			} else {
+				req.Target = args[0]
+			}
+		} else if len(args) == 2 {
+			req.Target = args[0] + "_" + args[1] + "_"
+		}
 		
 		cfg := LoadClientConfig()
 		opts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})), grpc.WithPerRPCCredentials(tokenAuth{token: cfg.Token})}
@@ -41,6 +53,23 @@ var backupListCmd = &cobra.Command{
 		resp, err := client.ListBackups(context.Background(), req)
 		if err != nil { log.Fatalf("❌ RPC Error: %v", err) }
 		
+		if exactChain != "" {
+			var chainFiltered []*pb.BackupArchive
+			inChain := false
+			for _, a := range resp.Archives {
+				if a.Filename == exactChain {
+					inChain = true
+					chainFiltered = append(chainFiltered, a)
+					continue
+				}
+				if inChain {
+					if a.ArchiveType == "FULL" { break }
+					chainFiltered = append(chainFiltered, a)
+				}
+			}
+			resp.Archives = chainFiltered
+		}
+
 		var filtered []*pb.BackupArchive
 		for _, a := range resp.Archives {
 			if filterSystem && !filterDocker && a.Type != "SYSTEM" { continue }
