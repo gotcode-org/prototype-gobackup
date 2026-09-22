@@ -138,7 +138,7 @@ func resetSnapshot(srv ServerConfig, job JobConfig, volName string, ui tui.Backu
 		}
 	} else {
 		if srv.UseSudo {
-			resetCmd = "sudo -n " + resetCmd
+			resetCmd = "sudo -n sh -c '" + resetCmd + "'"
 		}
 		args := []string{"-p", strconv.Itoa(srv.Port), srv.Address, resetCmd}
 		cmd = exec.Command("ssh", args...)
@@ -247,6 +247,19 @@ func RunSingleBackup(cfg Config, job JobConfig, ui tui.BackupUI) {
 		fileName := fmt.Sprintf("%s_%s_%s_%s_%s.tar.gz", job.Server, job.Name, vol, archiveType, timestamp)
 		targetFile := filepath.Join(dockerDir, fileName)
 
+		// Pre-create snapshots dir to prevent Docker from creating it as root:root
+		if job.Incremental {
+			mkdirCmdStr := "mkdir -p /home/backup/.gobackup/snapshots"
+			var preCmd *exec.Cmd
+			if srv.Address == "localhost" || srv.Address == "127.0.0.1" || srv.Address == "local" {
+				preCmd = exec.Command("sh", "-c", mkdirCmdStr)
+			} else {
+				preArgs := []string{"-p", strconv.Itoa(srv.Port), srv.Address, mkdirCmdStr}
+				preCmd = exec.Command("ssh", preArgs...)
+			}
+			preCmd.Run()
+		}
+
 		var cmd *exec.Cmd
 		
 		dockerCmdStr := fmt.Sprintf("docker run --rm -v %s:/volume:ro ", vol)
@@ -263,7 +276,7 @@ func RunSingleBackup(cfg Config, job JobConfig, ui tui.BackupUI) {
 		if srv.Address == "localhost" || srv.Address == "127.0.0.1" || srv.Address == "local" {
 			cmd = exec.Command("sh", "-c", dockerCmdStr)
 		} else {
-			args := []string{"-p", strconv.Itoa(srv.Port), srv.Address, "sh", "-c", dockerCmdStr}
+			args := []string{"-p", strconv.Itoa(srv.Port), srv.Address, dockerCmdStr}
 			cmd = exec.Command("ssh", args...)
 		}
 
