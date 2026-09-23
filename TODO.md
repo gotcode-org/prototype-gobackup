@@ -97,3 +97,10 @@
 ## 3. gbctl attach Log Prefix Formatting
 * When running `gbctl attach` (or using `--attach` on job runs), the stream currently prefixes log lines with `[job-name]`.
 * Update the logging engine to namespace the prefix as `[server_name@job_name]` so it's explicitly clear which remote host the output belongs to (especially useful for parallel or similarly-named jobs).
+
+## 5. Notification Digests & Queue Batching
+* Firing individual start/finish webhooks for 20 jobs that take 3 seconds each creates severe alert fatigue.
+* Implement a `BatchTracker` in the global Mutex engine. When the cron scheduler fires multiple jobs simultaneously (e.g., at `0 2 * * *`), group them into a single "Run Session".
+* Emit a single **"Backup Queue Initiated"** alert listing the pending jobs.
+* As jobs complete, silently tally their results (Success, Warning, Failure, Duration, Size) in memory.
+* When the queue empties and returns to `Idle`, emit a single consolidated **"Backup Run Digest"** alert featuring a clean summary report of all jobs processed in that batch.
