@@ -93,3 +93,7 @@
 * NFS handles can become "stale" if the upstream TrueNAS/Synology server reboots, which ordinarily causes standard Linux commands (like `stat` or `ls`) to hang infinitely, freezing the backup queue.
 * Implement a heavily timeout-bounded stat check (e.g., using Go's `context.WithTimeout(..., 3*time.Second)`) against the sentinel file before starting any I/O operations.
 * If the I/O check times out or returns an `ESTALE` error, the engine must trap the failure, gracefully abort the job without freezing the daemon, and send a webhook notification: `Backup Failed: NFS Mount is stale or unresponsive.`
+
+## 3. gbctl attach Log Prefix Formatting
+* When running `gbctl attach` (or using `--attach` on job runs), the stream currently prefixes log lines with `[job-name]`.
+* Update the logging engine to namespace the prefix as `[server_name@job_name]` so it's explicitly clear which remote host the output belongs to (especially useful for parallel or similarly-named jobs).
