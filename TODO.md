@@ -101,6 +101,6 @@
 ## 5. Notification Digests & Queue Batching
 * Firing individual start/finish webhooks for 20 jobs that take 3 seconds each creates severe alert fatigue.
 * Implement a `BatchTracker` in the global Mutex engine. When the cron scheduler fires multiple jobs simultaneously (e.g., at `0 2 * * *`), group them into a single "Run Session".
-* Emit a single **"Backup Queue Initiated"** alert listing the pending jobs.
+* Emit a single **"Backup Queue Initiated"** alert explicitly listing all of the `server_name/job_name` targets that were just added to the queue, so the user knows exactly what is running in this batch.
 * As jobs complete, silently tally their results (Success, Warning, Failure, Duration, Size) in memory.
 * When the queue empties and returns to `Idle`, emit a single consolidated **"Backup Run Digest"** alert featuring a clean summary report of all jobs processed in that batch. This digest must explicitly list the `server_name/job_name` grouped under clear headers for ✅ Success, ⚠️ Warnings, and ❌ Failures so the user knows exactly which servers had issues at a glance.
