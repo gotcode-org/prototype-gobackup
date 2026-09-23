@@ -69,3 +69,11 @@
 * When restoring directly to a named Docker volume, the engine will automatically spin up an ephemeral `alpine` container with the target volume mounted to `/dest`.
 * The standard chronological tar stream (FULL + INCs) will be piped directly over SSH into the ephemeral container's `tar -xzf - -C /dest` extraction pipeline.
 * This ensures all ownership (`root:root`, etc.) and permissions are perfectly restored inside the Docker daemon's managed `/var/lib/docker/volumes` namespace without requiring `sudo` privileges on the host filesystem.
+
+# Phase 7: CLI Dashboard Formatting & Polish
+
+## 1. gbctl status Queued Jobs Refactor
+* Right now, `gbctl status` dumps all dynamically queued jobs into a comma-separated string `⏳ Queued Jobs (14): a, b, c...` which causes ugly terminal line-wrapping when many jobs are stacked.
+* Update `cmd/gbctl/status.go` to parse the `resp.QueuedJobs` array and output it using Go's `text/tabwriter` engine.
+* Format it nicely into columns: `QUEUE POS | SERVER | JOB`. 
+* Ensure string splitting correctly identifies the server vs the job name (splitting the tracking ID on the first underscore).
