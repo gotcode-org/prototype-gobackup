@@ -58,3 +58,14 @@
 
 ## 4. CLI Transparency
 * Update `gbctl backup list` so it can scan both the Hot volume and the Cold volume, visually indicating to the user whether an archive is currently in fast local storage or deep cold storage.
+
+# Phase 6: Native Docker Volume Restoration
+
+## 1. API and CLI Enhancements
+* Update the `RestoreBackupRequest` protobuf and the `gbctl backup restore` CLI to accept a new flag like `--target-volume <volume_name>`.
+* If a user specifies `--target-volume`, the daemon should bypass the standard directory extraction logic and instead route the restore stream directly into the Docker engine.
+
+## 2. Docker Pipeline Injection
+* When restoring directly to a named Docker volume, the engine will automatically spin up an ephemeral `alpine` container with the target volume mounted to `/dest`.
+* The standard chronological tar stream (FULL + INCs) will be piped directly over SSH into the ephemeral container's `tar -xzf - -C /dest` extraction pipeline.
+* This ensures all ownership (`root:root`, etc.) and permissions are perfectly restored inside the Docker daemon's managed `/var/lib/docker/volumes` namespace without requiring `sudo` privileges on the host filesystem.
