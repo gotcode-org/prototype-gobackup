@@ -103,4 +103,4 @@
 * Implement a `BatchTracker` in the global Mutex engine. When the cron scheduler fires multiple jobs simultaneously (e.g., at `0 2 * * *`), group them into a single "Run Session".
 * Emit a single **"Backup Queue Initiated"** alert listing the pending jobs.
 * As jobs complete, silently tally their results (Success, Warning, Failure, Duration, Size) in memory.
-* When the queue empties and returns to `Idle`, emit a single consolidated **"Backup Run Digest"** alert featuring a clean summary report of all jobs processed in that batch.
+* When the queue empties and returns to `Idle`, emit a single consolidated **"Backup Run Digest"** alert featuring a clean summary report of all jobs processed in that batch. This digest must explicitly list the `server_name/job_name` grouped under clear headers for ✅ Success, ⚠️ Warnings, and ❌ Failures so the user knows exactly which servers had issues at a glance.
