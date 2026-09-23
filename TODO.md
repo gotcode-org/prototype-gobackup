@@ -81,3 +81,15 @@
 ## 2. gbctl status Scheduled Jobs Limit
 * `gbctl status` currently hardcodes a limit of 15 scheduled jobs before truncating the output (`... and X more`).
 * Add a `--all` or `--limit` flag to `gbctl status` so the user can easily print the entire cron-ordered schedule regardless of how massive the fleet is.
+
+# Phase 8: Storage Resilience & Mount Verification
+
+## 1. Sentinel File Verification
+* Prevent the daemon from accidentally filling up the local root filesystem (`/`) if a Network File System (NFS) drops.
+* The engine should require a sentinel file (e.g., `.gobackup_mounted`) to exist at the root of both the Hot `backup_dir` and the Cold Storage `cold_storage_path`.
+* If the engine tries to initiate a backup or a prune and this file is missing, it instantly aborts and fires a critical webhook notification: `Backup Failed: Target storage volume is unmounted.`
+
+## 2. Stale NFS Handle Detection
+* NFS handles can become "stale" if the upstream TrueNAS/Synology server reboots, which ordinarily causes standard Linux commands (like `stat` or `ls`) to hang infinitely, freezing the backup queue.
+* Implement a heavily timeout-bounded stat check (e.g., using Go's `context.WithTimeout(..., 3*time.Second)`) against the sentinel file before starting any I/O operations.
+* If the I/O check times out or returns an `ESTALE` error, the engine must trap the failure, gracefully abort the job without freezing the daemon, and send a webhook notification: `Backup Failed: NFS Mount is stale or unresponsive.`
