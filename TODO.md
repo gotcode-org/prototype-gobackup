@@ -77,3 +77,7 @@
 * Update `cmd/gbctl/status.go` to parse the `resp.QueuedJobs` array and output it using Go's `text/tabwriter` engine.
 * Format it nicely into columns: `QUEUE POS | SERVER | JOB`. 
 * Ensure string splitting correctly identifies the server vs the job name (splitting the tracking ID on the first underscore).
+
+## 2. gbctl status Scheduled Jobs Limit
+* `gbctl status` currently hardcodes a limit of 15 scheduled jobs before truncating the output (`... and X more`).
+* Add a `--all` or `--limit` flag to `gbctl status` so the user can easily print the entire cron-ordered schedule regardless of how massive the fleet is.
