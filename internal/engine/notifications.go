@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"io"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -213,7 +214,8 @@ func (m *M365GraphNotifier) Send(title, description, host, targetFile string, co
 	defer respSend.Body.Close()
 
 	if respSend.StatusCode >= 400 {
-		return fmt.Errorf("m365 sendMail failed with status %d", respSend.StatusCode)
+		bodyBytes, _ := io.ReadAll(respSend.Body)
+		return fmt.Errorf("m365 sendMail failed with status %d: %s", respSend.StatusCode, string(bodyBytes))
 	}
 
 	return nil
