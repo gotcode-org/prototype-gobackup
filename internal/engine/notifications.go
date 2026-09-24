@@ -168,8 +168,14 @@ func (m *M365GraphNotifier) Send(title, description, host, targetFile string, co
 
 	// 2. Construct the Email Payload
 	statusHtml := "Completed Successfully"
-	if color == 0xFF0000 {
+	if color == 0x3498DB { // Blue
+		statusHtml = "<span style='color:blue;'>Started...</span>"
+	} else if color == 0xF1C40F { // Yellow/Warning
+		statusHtml = "<strong style='color:orange;'>WARNING</strong>"
+	} else if color == 0xFF0000 { // Red
 		statusHtml = "<strong style='color:red;'>FAILED</strong>"
+	} else if color == 0x00FF00 { // Green
+		statusHtml = "<strong style='color:green;'>SUCCESS</strong>"
 	}
 
 	emailPayload := map[string]interface{}{
