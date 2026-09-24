@@ -54,6 +54,7 @@ var (
 	IsBatchActive bool
 	BatchResults  []JobResult
 	BatchStartTime time.Time
+	BatchEnqueuedJobs []string
 )
 
 func EnqueueJob(host string, cfg Config) {
@@ -69,11 +70,15 @@ func EnqueueJob(host string, cfg Config) {
 	}
 	if !isDup {
 		QueuedJobs = append(QueuedJobs, host)
+		if IsBatchActive {
+			BatchEnqueuedJobs = append(BatchEnqueuedJobs, host)
+		}
 	}
 
 	if !IsBatchActive && len(QueuedJobs) > 0 {
 		IsBatchActive = true
 		BatchResults = nil
+		BatchEnqueuedJobs = []string{host}
 		BatchStartTime = time.Now()
 
 		// Launch a debouncer that waits 2 seconds for all cron jobs to enter the queue, then sends the batch start alert
