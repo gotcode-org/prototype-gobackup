@@ -42,17 +42,61 @@ var (
 	ActiveJob  string
 	QueuedJobs []string
 )
+type JobResult struct {
+	Server   string
+	Job      string
+	Status   string // "SUCCESS", "WARNING", "FAILED"
+	Error    string
+	Duration string
+}
 
-func EnqueueJob(host string) {
+var (
+	IsBatchActive bool
+	BatchResults  []JobResult
+	BatchStartTime time.Time
+)
+
+func EnqueueJob(host string, cfg Config) {
 	StateMutex.Lock()
-	defer StateMutex.Unlock()
+	
 	// Prevent duplicates so we can pre-populate global runs safely
+	isDup := false
 	for _, v := range QueuedJobs {
 		if v == host {
-			return
+			isDup = true
+			break
 		}
 	}
-	QueuedJobs = append(QueuedJobs, host)
+	if !isDup {
+		QueuedJobs = append(QueuedJobs, host)
+	}
+
+	if !IsBatchActive && len(QueuedJobs) > 0 {
+		IsBatchActive = true
+		BatchResults = nil
+		BatchStartTime = time.Now()
+
+		// Launch a debouncer that waits 2 seconds for all cron jobs to enter the queue, then sends the batch start alert
+		go func(c Config) {
+			time.Sleep(2 * time.Second)
+			StateMutex.Lock()
+			jobsList := make([]string, len(QueuedJobs))
+			copy(jobsList, QueuedJobs)
+			if ActiveJob != "" {
+				jobsList = append(jobsList, ActiveJob)
+			}
+			StateMutex.Unlock()
+
+			desc := "The following jobs have been queued for execution:\n"
+			for _, j := range jobsList {
+				desc += "- " + j + "\n"
+			}
+			
+			SendNotification(c.Notifications, "🚀 Backup Queue Started", desc, 0x3498DB, "Multiple Targets", fmt.Sprintf("%d jobs in queue", len(jobsList)), nil)
+		}(cfg)
+	}
+	
+	StateMutex.Unlock()
 }
 
 func DequeueAndSetActive(host string) {
@@ -67,15 +111,55 @@ func DequeueAndSetActive(host string) {
 	ActiveJob = host
 }
 
-func ClearActive() {
+func ClearActive(cfg Config) {
 	StateMutex.Lock()
 	defer StateMutex.Unlock()
 	ActiveJob = ""
+
+	if IsBatchActive && len(QueuedJobs) == 0 {
+		IsBatchActive = false
+		
+		// Build the digest!
+		successCount := 0
+		warnCount := 0
+		failCount := 0
+		
+		desc := "<h3>Batch Execution Summary</h3>"
+		desc += "<table style='width:100%; border-collapse: collapse;' border='1'>"
+		desc += "<tr><th>Server/Job</th><th>Status</th><th>Details</th></tr>"
+		
+		color := 0x00FF00 // Default to green
+		
+		for _, res := range BatchResults {
+			if res.Status == "SUCCESS" {
+				successCount++
+				desc += fmt.Sprintf("<tr><td>%s/%s</td><td style='color:green;'>SUCCESS</td><td>%s</td></tr>", res.Server, res.Job, res.Duration)
+			} else if res.Status == "WARNING" {
+				warnCount++
+				color = 0xF1C40F // Yellow
+				desc += fmt.Sprintf("<tr><td>%s/%s</td><td style='color:orange;'>WARNING</td><td>%s</td></tr>", res.Server, res.Job, res.Error)
+			} else {
+				failCount++
+				color = 0xFF0000 // Red
+				desc += fmt.Sprintf("<tr><td>%s/%s</td><td style='color:red;'>FAILED</td><td>%s</td></tr>", res.Server, res.Job, res.Error)
+			}
+		}
+		desc += "</table>"
+		
+		title := fmt.Sprintf("✅ Backup Digest: %d Succ, %d Warn, %d Fail", successCount, warnCount, failCount)
+		if failCount > 0 {
+			title = fmt.Sprintf("❌ Backup Digest: %d Succ, %d Warn, %d Fail", successCount, warnCount, failCount)
+		} else if warnCount > 0 {
+			title = fmt.Sprintf("⚠️ Backup Digest: %d Succ, %d Warn, %d Fail", successCount, warnCount, failCount)
+		}
+
+		SendNotification(cfg.Notifications, title, desc, color, "Batch Digest", fmt.Sprintf("Total Duration: %s", time.Since(BatchStartTime).Round(time.Second).String()), nil)
+	}
 }
 
 func RunBackups(cfg Config, ui tui.BackupUI) {
 	for _, job := range cfg.Jobs {
-		EnqueueJob(job.Server + "_" + job.Name)
+		EnqueueJob(job.Server + "_" + job.Name, cfg)
 		go RunSingleBackup(cfg, job, ui)
 	}
 	CleanupOldBackups(cfg.BackupDir, cfg.Jobs, ui)
@@ -153,13 +237,13 @@ func RunSingleBackup(cfg Config, job JobConfig, ui tui.BackupUI) {
 	ui.SetStatus(fmt.Sprintf("Queued: %s", job.Name), true)
 	ui.Log("⏳ Job for %s entered the global queue. Waiting for active jobs to finish...", job.Name)
 	
-	EnqueueJob(job.Server + "_" + job.Name)
+	EnqueueJob(job.Server + "_" + job.Name, cfg)
 
 	GlobalBackupQueue.Lock()
 	DequeueAndSetActive(job.Server + "_" + job.Name)
 
 	defer func() {
-		ClearActive()
+		ClearActive(cfg)
 		GlobalBackupQueue.Unlock()
 	}()
 
@@ -299,11 +383,7 @@ func executeBackupCommand(cfg Config, job JobConfig, srv ServerConfig, ui tui.Ba
 	cmd.Stdout = outFile
 	cmd.Stderr = &cmdLogger{ui: ui} 
 
-	SendNotification(cfg.Notifications, 
-		fmt.Sprintf("🔄 %s Backup Started (%s/%s)", backupType, job.Server, job.Name),
-		fmt.Sprintf("Backup started for `%s/%s`.", job.Server, job.Name),
-		3447003, job.Server, targetFile, ui)
-
+	
 	startTime := time.Now()
 
 	ui.SetStatus(fmt.Sprintf("Backing up %s for: %s/%s (%s)", backupType, job.Server, job.Name, srv.Address), true)
@@ -338,16 +418,10 @@ func executeBackupCommand(cfg Config, job JobConfig, srv ServerConfig, ui tui.Ba
 	}
 
 	if exitCode == 1 {
-		SendNotification(cfg.Notifications,
-			fmt.Sprintf("⚠️ %s Backup Completed with Warnings (%s/%s)", backupType, job.Server, job.Name),
-			fmt.Sprintf("Backup finished in %s, but some active files changed or vanished during the backup process.\n\n**Statistics:**\n```text\nArchive Size: %s\n```", duration, sizeStr),
-			16766720, job.Server, targetFile, ui)
+		pushJobResult(job.Server, job.Name, "WARNING", "Files changed during run", duration.String())
 		ui.Summary("   ⚠️  %s Completed with warnings (files changed) for %s/%s (%s)", backupType, job.Server, job.Name, sizeStr)
 	} else {
-		SendNotification(cfg.Notifications,
-			fmt.Sprintf("✅ %s Backup Completed (%s/%s)", backupType, job.Server, job.Name),
-			fmt.Sprintf("Backup finished successfully in %s.\n\n**Statistics:**\n```text\nArchive Size: %s\n```", duration, sizeStr),
-			3066993, job.Server, targetFile, ui)
+		pushJobResult(job.Server, job.Name, "SUCCESS", "", duration.String())
 		ui.Summary("   ✅ Success (%s)! Saved to %s (%s) in %s", backupType, targetFile, sizeStr, duration)
 	}
 }
@@ -434,4 +508,17 @@ func CleanupOldBackups(dir string, jobs []JobConfig, ui tui.BackupUI) {
 func SendNotification(configs []NotificationConfig, title, desc string, color int, hostName, targetFile string, ui tui.BackupUI) {
 	// Dispatch to the multi-channel notification engine
 	SendNotifications(configs, title, desc, hostName, targetFile, color)
+}
+
+
+func pushJobResult(server, jobName, status, errMsg, duration string) {
+	StateMutex.Lock()
+	defer StateMutex.Unlock()
+	BatchResults = append(BatchResults, JobResult{
+		Server: server,
+		Job: jobName,
+		Status: status,
+		Error: errMsg,
+		Duration: duration,
+	})
 }

@@ -332,12 +332,14 @@ func buildFancyHTML(title, description, host, targetFile string, color int) stri
 		statusHtml = "<strong style='color:green;'>SUCCESS</strong>"
 	}
 
+	htmlDesc := strings.ReplaceAll(description, "\n", "<br>")
+
 	return fmt.Sprintf(`
 		<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f9fafb; padding: 20px; border-radius: 8px;">
 			<div style="background-color: #ffffff; border: 3px solid #4f46e5; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); padding: 24px;">
 				<div style="border-bottom: 1px solid #e5e7eb; padding-bottom: 16px; margin-bottom: 20px;">
 					<h2 style="margin: 0; color: #111827; font-size: 20px; font-weight: 600;">%s</h2>
-					<p style="margin: 6px 0 0; color: #6b7280; font-size: 14px;">%s</p>
+					<p style="margin: 6px 0 0; color: #6b7280; font-size: 14px; line-height: 1.5;">%s</p>
 				</div>
 				
 				<div style="margin-bottom: 20px;">
@@ -362,5 +364,5 @@ func buildFancyHTML(title, description, host, targetFile string, color int) stri
 				</div>
 			</div>
 		</div>
-	`, title, description, host, targetFile, statusHtml)
+	`, title, htmlDesc, host, targetFile, statusHtml)
 }
