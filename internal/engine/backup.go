@@ -83,7 +83,7 @@ func EnqueueJob(host string, cfg Config) {
 			jobsList := make([]string, len(QueuedJobs))
 			copy(jobsList, QueuedJobs)
 			if ActiveJob != "" {
-				jobsList = append(jobsList, ActiveJob)
+				jobsList = append([]string{ActiveJob + " (Running)"}, jobsList...)
 			}
 			StateMutex.Unlock()
 
