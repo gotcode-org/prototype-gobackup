@@ -185,7 +185,7 @@ func (m *M365GraphNotifier) Send(title, description, host, targetFile string, co
 				"contentType": "HTML",
 				"content": fmt.Sprintf(`
 					<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f9fafb; padding: 20px; border-radius: 8px;">
-						<div style="background-color: #ffffff; border-left: 6px solid #4f46e5; border-radius: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 24px;">
+						<div style="background-color: #ffffff; border: 3px solid #4f46e5; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); padding: 24px;">
 							<div style="border-bottom: 1px solid #e5e7eb; padding-bottom: 16px; margin-bottom: 20px;">
 								<h2 style="margin: 0; color: #111827; font-size: 20px; font-weight: 600;">GoBackup Alert</h2>
 								<p style="margin: 6px 0 0; color: #6b7280; font-size: 14px;">%s</p>
