@@ -184,13 +184,35 @@ func (m *M365GraphNotifier) Send(title, description, host, targetFile string, co
 			"body": map[string]interface{}{
 				"contentType": "HTML",
 				"content": fmt.Sprintf(`
-					<h3>GoBackup Daemon Alert</h3>
-					<p>%s</p>
-					<ul>
-						<li><b>Target Host:</b> %s</li>
-						<li><b>Archive Path:</b> %s</li>
-						<li><b>Status:</b> %s</li>
-					</ul>
+					<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f9fafb; padding: 20px; border-radius: 8px;">
+						<div style="background-color: #ffffff; border-left: 6px solid #4f46e5; border-radius: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 24px;">
+							<div style="border-bottom: 1px solid #e5e7eb; padding-bottom: 16px; margin-bottom: 20px;">
+								<h2 style="margin: 0; color: #111827; font-size: 20px; font-weight: 600;">GoBackup Alert</h2>
+								<p style="margin: 6px 0 0; color: #6b7280; font-size: 14px;">%s</p>
+							</div>
+							
+							<div style="margin-bottom: 20px;">
+								<table style="width: 100%%; border-collapse: collapse;">
+									<tr>
+										<td style="padding: 8px 0; color: #6b7280; font-size: 13px; font-weight: 600; text-transform: uppercase; width: 120px;">Target Host</td>
+										<td style="padding: 8px 0; color: #111827; font-size: 15px; font-weight: 500;">%s</td>
+									</tr>
+									<tr>
+										<td style="padding: 8px 0; color: #6b7280; font-size: 13px; font-weight: 600; text-transform: uppercase;">Archive Path</td>
+										<td style="padding: 8px 0; color: #111827; font-size: 14px; font-family: monospace; background: #f3f4f6; padding: 4px 8px; border-radius: 4px;">%s</td>
+									</tr>
+									<tr>
+										<td style="padding: 8px 0; color: #6b7280; font-size: 13px; font-weight: 600; text-transform: uppercase;">Current Status</td>
+										<td style="padding: 8px 0; font-size: 15px;">%s</td>
+									</tr>
+								</table>
+							</div>
+							
+							<div style="border-top: 1px solid #e5e7eb; padding-top: 16px; text-align: center;">
+								<p style="margin: 0; color: #9ca3af; font-size: 12px;">This is an automated message from the GoBackup Daemon.</p>
+							</div>
+						</div>
+					</div>
 				`, description, host, targetFile, statusHtml),
 			},
 			"toRecipients": []map[string]interface{}{
