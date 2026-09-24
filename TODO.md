@@ -98,7 +98,12 @@
 * When running `gbctl attach` (or using `--attach` on job runs), the stream currently prefixes log lines with `[job-name]`.
 * Update the logging engine to namespace the prefix as `[server_name@job_name]` so it's explicitly clear which remote host the output belongs to (especially useful for parallel or similarly-named jobs).
 
-## 5. Notification Digests & Queue Batching
+## 5. Documentation (docs/NOTIFICATIONS.md)
+* Create a dedicated `docs/NOTIFICATIONS.md` file to thoroughly document the multi-channel notification engine.
+* Include specific examples on how to configure `gobackup.yaml` for each provider.
+* Crucially, include external tutorials on how to provision these endpoints (e.g., how to register an Azure AD App for M365 Graph API, how to create a Discord Webhook, etc).
+
+## 6. Notification Digests & Queue Batching
 * Firing individual start/finish webhooks for 20 jobs that take 3 seconds each creates severe alert fatigue.
 * Implement a `BatchTracker` in the global Mutex engine. When the cron scheduler fires multiple jobs simultaneously (e.g., at `0 2 * * *`), group them into a single "Run Session".
 * Emit a single **"Backup Queue Initiated"** alert explicitly listing all of the `server_name/job_name` targets that were just added to the queue, so the user knows exactly what is running in this batch.
