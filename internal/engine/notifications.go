@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"net/smtp"
 	"io"
 	"bytes"
 	"encoding/json"
@@ -118,7 +119,30 @@ type EmailNotifier struct {
 }
 
 func (e *EmailNotifier) Send(title, description, host, targetFile string, color int) error {
-	log.Printf("[DEBUG] EmailNotifier stub hit. Would send email to %s regarding %s.", e.To, host)
+	if e.Host == "" || e.Port == 0 || e.To == "" || e.From == "" {
+		return fmt.Errorf("missing required SMTP configuration parameters")
+	}
+
+	htmlBody := buildFancyHTML(title, description, host, targetFile, color)
+
+	headers := "MIME-version: 1.0\r\n" +
+		"Content-Type: text/html; charset=\"UTF-8\"\r\n" +
+		fmt.Sprintf("To: %s\r\n", e.To) +
+		fmt.Sprintf("From: %s\r\n", e.From) +
+		fmt.Sprintf("Subject: %s\r\n\r\n", title)
+
+	msg := []byte(headers + htmlBody)
+
+	var auth smtp.Auth
+	if e.User != "" && e.Pass != "" {
+		auth = smtp.PlainAuth("", e.User, e.Pass, e.Host)
+	}
+
+	addr := fmt.Sprintf("%s:%d", e.Host, e.Port)
+	if err := smtp.SendMail(addr, auth, e.From, []string{e.To}, msg); err != nil {
+		return fmt.Errorf("smtp send failed: %w", err)
+	}
+
 	return nil
 }
 
@@ -166,54 +190,14 @@ func (m *M365GraphNotifier) Send(title, description, host, targetFile string, co
 		return err
 	}
 
-	// 2. Construct the Email Payload
-	statusHtml := "Completed Successfully"
-	if color == 0x3498DB { // Blue
-		statusHtml = "<span style='color:blue;'>Started...</span>"
-	} else if color == 0xF1C40F { // Yellow/Warning
-		statusHtml = "<strong style='color:orange;'>WARNING</strong>"
-	} else if color == 0xFF0000 { // Red
-		statusHtml = "<strong style='color:red;'>FAILED</strong>"
-	} else if color == 0x00FF00 { // Green
-		statusHtml = "<strong style='color:green;'>SUCCESS</strong>"
-	}
+	htmlBody := buildFancyHTML(title, description, host, targetFile, color)
 
 	emailPayload := map[string]interface{}{
 		"message": map[string]interface{}{
 			"subject": title,
 			"body": map[string]interface{}{
 				"contentType": "HTML",
-				"content": fmt.Sprintf(`
-					<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f9fafb; padding: 20px; border-radius: 8px;">
-						<div style="background-color: #ffffff; border: 3px solid #4f46e5; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); padding: 24px;">
-							<div style="border-bottom: 1px solid #e5e7eb; padding-bottom: 16px; margin-bottom: 20px;">
-								<h2 style="margin: 0; color: #111827; font-size: 20px; font-weight: 600;">GoBackup Alert</h2>
-								<p style="margin: 6px 0 0; color: #6b7280; font-size: 14px;">%s</p>
-							</div>
-							
-							<div style="margin-bottom: 20px;">
-								<table style="width: 100%%; border-collapse: collapse;">
-									<tr>
-										<td style="padding: 8px 0; color: #6b7280; font-size: 13px; font-weight: 600; text-transform: uppercase; width: 120px;">Target Host</td>
-										<td style="padding: 8px 0; color: #111827; font-size: 15px; font-weight: 500;">%s</td>
-									</tr>
-									<tr>
-										<td style="padding: 8px 0; color: #6b7280; font-size: 13px; font-weight: 600; text-transform: uppercase;">Archive Path</td>
-										<td style="padding: 8px 0; color: #111827; font-size: 14px; font-family: monospace; background: #f3f4f6; padding: 4px 8px; border-radius: 4px; word-break: break-all;">%s</td>
-									</tr>
-									<tr>
-										<td style="padding: 8px 0; color: #6b7280; font-size: 13px; font-weight: 600; text-transform: uppercase;">Current Status</td>
-										<td style="padding: 8px 0; font-size: 15px;">%s</td>
-									</tr>
-								</table>
-							</div>
-							
-							<div style="border-top: 1px solid #e5e7eb; padding-top: 16px; text-align: center;">
-								<p style="margin: 0; color: #9ca3af; font-size: 12px;">This is an automated message from the GoBackup Daemon.</p>
-							</div>
-						</div>
-					</div>
-				`, description, host, targetFile, statusHtml),
+				"content": htmlBody,
 			},
 			"toRecipients": []map[string]interface{}{
 				{
@@ -258,7 +242,41 @@ type GenericWebhookNotifier struct {
 }
 
 func (g *GenericWebhookNotifier) Send(title, description, host, targetFile string, color int) error {
-	log.Printf("[DEBUG] GenericWebhookNotifier stub hit. Would POST JSON to %s.", g.URL)
+	if g.URL == "" {
+		return nil
+	}
+
+	status := "success"
+	if color == 0x3498DB { status = "started" }
+	if color == 0xF1C40F { status = "warning" }
+	if color == 0xFF0000 { status = "failed" }
+
+	payload := map[string]interface{}{
+		"title": title,
+		"description": description,
+		"host": host,
+		"target_file": targetFile,
+		"status": status,
+		"color": color,
+		"timestamp": time.Now().Format(time.RFC3339),
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil { return err }
+
+	req, err := http.NewRequest("POST", g.URL, bytes.NewBuffer(jsonData))
+	if err != nil { return err }
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil { return err }
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("generic webhook returned status %d", resp.StatusCode)
+	}
+
 	return nil
 }
 
@@ -300,4 +318,49 @@ func SendNotifications(configs []NotificationConfig, title, description, host, t
 			}
 		}(n)
 	}
+}
+
+func buildFancyHTML(title, description, host, targetFile string, color int) string {
+	statusHtml := "Completed Successfully"
+	if color == 0x3498DB {
+		statusHtml = "<span style='color:blue;'>Started...</span>"
+	} else if color == 0xF1C40F {
+		statusHtml = "<strong style='color:orange;'>WARNING</strong>"
+	} else if color == 0xFF0000 {
+		statusHtml = "<strong style='color:red;'>FAILED</strong>"
+	} else if color == 0x00FF00 {
+		statusHtml = "<strong style='color:green;'>SUCCESS</strong>"
+	}
+
+	return fmt.Sprintf(`
+		<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f9fafb; padding: 20px; border-radius: 8px;">
+			<div style="background-color: #ffffff; border: 3px solid #4f46e5; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); padding: 24px;">
+				<div style="border-bottom: 1px solid #e5e7eb; padding-bottom: 16px; margin-bottom: 20px;">
+					<h2 style="margin: 0; color: #111827; font-size: 20px; font-weight: 600;">%s</h2>
+					<p style="margin: 6px 0 0; color: #6b7280; font-size: 14px;">%s</p>
+				</div>
+				
+				<div style="margin-bottom: 20px;">
+					<table style="width: 100%%; border-collapse: collapse;">
+						<tr>
+							<td style="padding: 8px 0; color: #6b7280; font-size: 13px; font-weight: 600; text-transform: uppercase; width: 120px;">Target Host</td>
+							<td style="padding: 8px 0; color: #111827; font-size: 15px; font-weight: 500;">%s</td>
+						</tr>
+						<tr>
+							<td style="padding: 8px 0; color: #6b7280; font-size: 13px; font-weight: 600; text-transform: uppercase;">Archive Path</td>
+							<td style="padding: 8px 0; color: #111827; font-size: 14px; font-family: monospace; background: #f3f4f6; padding: 4px 8px; border-radius: 4px; word-break: break-all;">%s</td>
+						</tr>
+						<tr>
+							<td style="padding: 8px 0; color: #6b7280; font-size: 13px; font-weight: 600; text-transform: uppercase;">Current Status</td>
+							<td style="padding: 8px 0; font-size: 15px;">%s</td>
+						</tr>
+					</table>
+				</div>
+				
+				<div style="border-top: 1px solid #e5e7eb; padding-top: 16px; text-align: center;">
+					<p style="margin: 0; color: #9ca3af; font-size: 12px;">This is an automated message from the GoBackup Daemon.</p>
+				</div>
+			</div>
+		</div>
+	`, title, description, host, targetFile, statusHtml)
 }
