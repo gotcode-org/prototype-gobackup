@@ -28,22 +28,17 @@ func (d *DiscordNotifier) Send(title, description, host, targetFile string, colo
 		return nil
 	}
 
+	// Reverting to the legacy flat JSON structure that the custom intermediary expects!
 	payload := map[string]interface{}{
-		"embeds": []map[string]interface{}{
-			{
-				"title":       title,
-				"description": description,
-				"color":       color,
-				"timestamp":   time.Now().Format(time.RFC3339),
-				"fields": []map[string]interface{}{
-					{"name": "Host", "value": host, "inline": true},
-					{"name": "Target", "value": targetFile, "inline": false},
-				},
-				"footer": map[string]interface{}{
-					"text": "GoBackup Core Engine",
-				},
-			},
+		"title":       title,
+		"description": description,
+		"color":       color,
+		"fields": [][]interface{}{
+			{"Backup Server", "GoBackup-Daemon", true},
+			{"Remote Target", host, true},
+			{"Destination", targetFile, false},
 		},
+		"footer": "GoBackup Automated Task",
 	}
 
 	jsonData, err := json.Marshal(payload)
