@@ -199,7 +199,7 @@ func (m *M365GraphNotifier) Send(title, description, host, targetFile string, co
 									</tr>
 									<tr>
 										<td style="padding: 8px 0; color: #6b7280; font-size: 13px; font-weight: 600; text-transform: uppercase;">Archive Path</td>
-										<td style="padding: 8px 0; color: #111827; font-size: 14px; font-family: monospace; background: #f3f4f6; padding: 4px 8px; border-radius: 4px;">%s</td>
+										<td style="padding: 8px 0; color: #111827; font-size: 14px; font-family: monospace; background: #f3f4f6; padding: 4px 8px; border-radius: 4px; word-break: break-all;">%s</td>
 									</tr>
 									<tr>
 										<td style="padding: 8px 0; color: #6b7280; font-size: 13px; font-weight: 600; text-transform: uppercase;">Current Status</td>
