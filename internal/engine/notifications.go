@@ -16,19 +16,18 @@ type Notifier interface {
 }
 
 // ============================================================================
-// DISCORD NOTIFIER
+// GOTUNIX CUSTOM WEBHOOK NOTIFIER (LEGACY)
 // ============================================================================
 
-type DiscordNotifier struct {
+type GotunixWebhookNotifier struct {
 	WebhookURL string
 }
 
-func (d *DiscordNotifier) Send(title, description, host, targetFile string, color int) error {
-	if d.WebhookURL == "" {
+func (g *GotunixWebhookNotifier) Send(title, description, host, targetFile string, color int) error {
+	if g.WebhookURL == "" {
 		return nil
 	}
 
-	// Reverting to the legacy flat JSON structure that the custom intermediary expects!
 	payload := map[string]interface{}{
 		"title":       title,
 		"description": description,
@@ -42,26 +41,65 @@ func (d *DiscordNotifier) Send(title, description, host, targetFile string, colo
 	}
 
 	jsonData, err := json.Marshal(payload)
-	if err != nil {
-		return err
-	}
+	if err != nil { return err }
 
-	req, err := http.NewRequest("POST", d.WebhookURL, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return err
-	}
+	req, err := http.NewRequest("POST", g.WebhookURL, bytes.NewBuffer(jsonData))
+	if err != nil { return err }
 	req.Header.Set("Content-Type", "application/json")
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
+	if err != nil { return err }
 	defer resp.Body.Close()
 
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("discord webhook returned status %d", resp.StatusCode)
+	if resp.StatusCode >= 400 { return fmt.Errorf("gotunix webhook returned status %d", resp.StatusCode) }
+	return nil
+}
+
+// ============================================================================
+// DISCORD NOTIFIER
+// ============================================================================
+
+type DiscordNotifier struct {
+	WebhookURL string
+}
+
+func (d *DiscordNotifier) Send(title, description, host, targetFile string, color int) error {
+	if d.WebhookURL == "" {
+		return nil
 	}
+
+	payload := map[string]interface{}{
+		"embeds": []map[string]interface{}{
+			{
+				"title":       title,
+				"description": description,
+				"color":       color,
+				"timestamp":   time.Now().Format(time.RFC3339),
+				"fields": []map[string]interface{}{
+					{"name": "Host", "value": host, "inline": true},
+					{"name": "Target", "value": targetFile, "inline": false},
+				},
+				"footer": map[string]interface{}{
+					"text": "GoBackup Core Engine",
+				},
+			},
+		},
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil { return err }
+
+	req, err := http.NewRequest("POST", d.WebhookURL, bytes.NewBuffer(jsonData))
+	if err != nil { return err }
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil { return err }
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 { return fmt.Errorf("discord webhook returned status %d", resp.StatusCode) }
 	return nil
 }
 
@@ -123,8 +161,10 @@ func SendNotifications(configs []NotificationConfig, title, description, host, t
 
 	for _, cfg := range configs {
 		switch strings.ToLower(cfg.Type) {
-		case "discord", "slack":
+		case "discord":
 			notifiers = append(notifiers, &DiscordNotifier{WebhookURL: cfg.URL})
+		case "gotunix_webhook":
+			notifiers = append(notifiers, &GotunixWebhookNotifier{WebhookURL: cfg.URL})
 		case "email", "smtp":
 			notifiers = append(notifiers, &EmailNotifier{
 				Host: cfg.SMTPHost, Port: cfg.SMTPPort,
