@@ -71,8 +71,42 @@ notifications:
 
 ## 4. Standard SMTP Email (`type: email`)
 
-*(In Development)* - Will support standard unauthenticated port 25 relays (e.g. Postfix) and standard TLS authenticated relays.
+Dispatches modern, HTML-formatted email alerts using standard `net/smtp` dialing. It natively supports both unauthenticated internal relays (like Postfix on port 25) and standard TLS-authenticated relays (like Gmail or SendGrid on port 587).
+
+### Configuration
+```yaml
+notifications:
+  - type: email
+    smtp_host: "smtp.gmail.com"
+    smtp_port: 587
+    smtp_user: "alerts@yourdomain.com" # Optional (Remove for unauthenticated relays)
+    smtp_pass: "your-app-password"     # Optional
+    to: "admin@yourdomain.com"
+    from: "alerts@yourdomain.com"
+```
+
+---
 
 ## 5. Generic HTTP Webhook (`type: webhook`)
 
-*(In Development)* - Will dispatch a clean, standard JSON payload (`{"status": "success", "job": "..."}`) for generic integrations like n8n or Zapier.
+Dispatches a clean, highly parsable flat JSON payload to any HTTP endpoint. Perfect for custom APIs, n8n, Zapier, or Make.com integrations where Discord's heavy "embed" formatting isn't needed.
+
+### Configuration
+```yaml
+notifications:
+  - type: webhook
+    url: "https://your-custom-api.com/webhook/receive"
+```
+
+### Example Payload
+```json
+{
+  "title": "GoBackup Alert",
+  "description": "Initiating tar pull natively...",
+  "host": "server_name",
+  "target_file": "/path/to/archive.tar.gz",
+  "status": "success",
+  "color": 65280,
+  "timestamp": "2026-09-24T15:00:00Z"
+}
+```
