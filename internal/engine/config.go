@@ -7,15 +7,29 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type NotificationConfig struct {
+	Type     string `yaml:"type"` // "discord", "email", "m365_graph", "webhook"
+	URL      string `yaml:"url,omitempty"`
+	SMTPHost string `yaml:"smtp_host,omitempty"`
+	SMTPPort int    `yaml:"smtp_port,omitempty"`
+	SMTPUser string `yaml:"smtp_user,omitempty"`
+	SMTPPass string `yaml:"smtp_pass,omitempty"`
+	To       string `yaml:"to,omitempty"`
+	From     string `yaml:"from,omitempty"`
+	TenantID string `yaml:"tenant_id,omitempty"`
+	ClientID string `yaml:"client_id,omitempty"`
+	Secret   string `yaml:"secret,omitempty"`
+}
+
 type Config struct {
-	BackupDir  string         `yaml:"backup_dir"`
-	WebhookURL string         `yaml:"webhook_url"`
-	ConfDir    string         `yaml:"conf_dir"`
-	DBPath     string         `yaml:"db_path"`
-	TLSCert    string         `yaml:"tls_cert"`
-	TLSKey     string         `yaml:"tls_key"`
-	Servers    []ServerConfig `yaml:"servers"`
-	Jobs       []JobConfig    `yaml:"jobs"`
+	BackupDir     string               `yaml:"backup_dir"`
+	Notifications []NotificationConfig `yaml:"notifications"` // Replaced single WebhookURL
+	ConfDir       string               `yaml:"conf_dir"`
+	DBPath        string               `yaml:"db_path"`
+	TLSCert       string               `yaml:"tls_cert"`
+	TLSKey        string               `yaml:"tls_key"`
+	Servers       []ServerConfig       `yaml:"servers"`
+	Jobs          []JobConfig          `yaml:"jobs"`
 }
 
 type ServerConfig struct {

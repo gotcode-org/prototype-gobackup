@@ -2,11 +2,8 @@ package engine
 
 import (
 	"sync"
-	"bytes"
-	"encoding/json"
 	"fmt"
 	
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -302,7 +299,7 @@ func executeBackupCommand(cfg Config, job JobConfig, srv ServerConfig, ui tui.Ba
 	cmd.Stdout = outFile
 	cmd.Stderr = &cmdLogger{ui: ui} 
 
-	SendNotification(cfg.WebhookURL, 
+	SendNotification(cfg.Notifications, 
 		fmt.Sprintf("🔄 %s Backup Started (%s/%s)", backupType, job.Server, job.Name),
 		fmt.Sprintf("Backup started for `%s/%s`.", job.Server, job.Name),
 		3447003, job.Server, targetFile, ui)
@@ -325,7 +322,7 @@ func executeBackupCommand(cfg Config, job JobConfig, srv ServerConfig, ui tui.Ba
 	}
 
 	if exitCode != 0 && exitCode != 1 {
-		SendNotification(cfg.WebhookURL,
+		SendNotification(cfg.Notifications,
 			fmt.Sprintf("❌ %s Backup Failed! (%s/%s)", backupType, job.Server, job.Name),
 			fmt.Sprintf("Backup fatally failed after %s (Exit Code: %d).\\n\\n**Error Details:**\\n```text\\n%v\\n```", duration, exitCode, err),
 			15158332, job.Server, targetFile, ui)
@@ -341,13 +338,13 @@ func executeBackupCommand(cfg Config, job JobConfig, srv ServerConfig, ui tui.Ba
 	}
 
 	if exitCode == 1 {
-		SendNotification(cfg.WebhookURL,
+		SendNotification(cfg.Notifications,
 			fmt.Sprintf("⚠️ %s Backup Completed with Warnings (%s/%s)", backupType, job.Server, job.Name),
 			fmt.Sprintf("Backup finished in %s, but some active files changed or vanished during the backup process.\n\n**Statistics:**\n```text\nArchive Size: %s\n```", duration, sizeStr),
 			16766720, job.Server, targetFile, ui)
 		ui.Summary("   ⚠️  %s Completed with warnings (files changed) for %s/%s (%s)", backupType, job.Server, job.Name, sizeStr)
 	} else {
-		SendNotification(cfg.WebhookURL,
+		SendNotification(cfg.Notifications,
 			fmt.Sprintf("✅ %s Backup Completed (%s/%s)", backupType, job.Server, job.Name),
 			fmt.Sprintf("Backup finished successfully in %s.\n\n**Statistics:**\n```text\nArchive Size: %s\n```", duration, sizeStr),
 			3066993, job.Server, targetFile, ui)
@@ -434,38 +431,7 @@ func CleanupOldBackups(dir string, jobs []JobConfig, ui tui.BackupUI) {
 }
 
 
-func SendNotification(webhookURL, title, desc string, color int, hostName, targetFile string, ui tui.BackupUI) {
-	if webhookURL == "" { return }
-	
-	payload := map[string]interface{}{
-		"title":       title,
-		"description": desc,
-		"color":       color,
-		"fields": [][]interface{}{
-			{"Backup Server", "GoBackup-Daemon", true},
-			{"Remote Target", hostName, true},
-			{"Destination", targetFile, false},
-		},
-		"footer": "GoBackup Automated Task",
-	}
-	b, _ := json.Marshal(payload)
-	req, _ := http.NewRequest("POST", webhookURL, bytes.NewBuffer(b))
-	req.Header.Set("Content-Type", "application/json")
-	client := &http.Client{
-		Timeout: 5 * time.Second,
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		if ui != nil { ui.Log("   ❌ Webhook HTTP Error: %v", err) }
-		return
-	}
-	defer resp.Body.Close()
-	
-	if resp.StatusCode >= 400 {
-		bodyBytes := make([]byte, 1024)
-		n, _ := resp.Body.Read(bodyBytes)
-		if ui != nil { ui.Log("   ❌ Webhook Rejected (HTTP %d): %s", resp.StatusCode, string(bodyBytes[:n])) }
-	} else {
-		if ui != nil { ui.Log("   ✅ Webhook Notification Sent") }
-	}
+func SendNotification(configs []NotificationConfig, title, desc string, color int, hostName, targetFile string, ui tui.BackupUI) {
+	// Dispatch to the multi-channel notification engine
+	SendNotifications(configs, title, desc, hostName, targetFile, color)
 }
