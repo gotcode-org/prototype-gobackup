@@ -122,7 +122,7 @@ func (e *EmailNotifier) Send(title, description, host, targetFile string, color 
 }
 
 // ============================================================================
-// M365 GRAPH API NOTIFIER (STUB)
+// M365 GRAPH API NOTIFIER
 // ============================================================================
 
 type M365GraphNotifier struct {
@@ -133,8 +133,89 @@ type M365GraphNotifier struct {
 	From     string
 }
 
+type graphTokenResponse struct {
+	AccessToken string `json:"access_token"`
+}
+
 func (m *M365GraphNotifier) Send(title, description, host, targetFile string, color int) error {
-	log.Printf("[DEBUG] M365GraphNotifier stub hit. Would POST to Microsoft Graph for %s.", host)
+	if m.TenantID == "" || m.ClientID == "" || m.Secret == "" || m.To == "" || m.From == "" {
+		return fmt.Errorf("missing required M365 Graph API configuration parameters")
+	}
+
+	// 1. Authenticate via OAuth2 Client Credentials Flow
+	tokenURL := fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/token", m.TenantID)
+	authBody := fmt.Sprintf("client_id=%s&scope=https%%3A%%2F%%2Fgraph.microsoft.com%%2F.default&client_secret=%s&grant_type=client_credentials", 
+		m.ClientID, m.Secret)
+
+	reqAuth, err := http.NewRequest("POST", tokenURL, strings.NewReader(authBody))
+	if err != nil { return err }
+	reqAuth.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	respAuth, err := client.Do(reqAuth)
+	if err != nil { return err }
+	defer respAuth.Body.Close()
+
+	if respAuth.StatusCode >= 400 {
+		return fmt.Errorf("m365 auth failed with status %d", respAuth.StatusCode)
+	}
+
+	var tokenRes graphTokenResponse
+	if err := json.NewDecoder(respAuth.Body).Decode(&tokenRes); err != nil {
+		return err
+	}
+
+	// 2. Construct the Email Payload
+	statusHtml := "Completed Successfully"
+	if color == 0xFF0000 {
+		statusHtml = "<strong style='color:red;'>FAILED</strong>"
+	}
+
+	emailPayload := map[string]interface{}{
+		"message": map[string]interface{}{
+			"subject": title,
+			"body": map[string]interface{}{
+				"contentType": "HTML",
+				"content": fmt.Sprintf(`
+					<h3>GoBackup Daemon Alert</h3>
+					<p>%s</p>
+					<ul>
+						<li><b>Target Host:</b> %s</li>
+						<li><b>Archive Path:</b> %s</li>
+						<li><b>Status:</b> %s</li>
+					</ul>
+				`, description, host, targetFile, statusHtml),
+			},
+			"toRecipients": []map[string]interface{}{
+				{
+					"emailAddress": map[string]interface{}{
+						"address": m.To,
+					},
+				},
+			},
+		},
+		"saveToSentItems": "false",
+	}
+
+	jsonData, err := json.Marshal(emailPayload)
+	if err != nil { return err }
+
+	// 3. Dispatch the Email via Graph API
+	sendURL := fmt.Sprintf("https://graph.microsoft.com/v1.0/users/%s/sendMail", m.From)
+	reqSend, err := http.NewRequest("POST", sendURL, bytes.NewBuffer(jsonData))
+	if err != nil { return err }
+	
+	reqSend.Header.Set("Authorization", "Bearer "+tokenRes.AccessToken)
+	reqSend.Header.Set("Content-Type", "application/json")
+
+	respSend, err := client.Do(reqSend)
+	if err != nil { return err }
+	defer respSend.Body.Close()
+
+	if respSend.StatusCode >= 400 {
+		return fmt.Errorf("m365 sendMail failed with status %d", respSend.StatusCode)
+	}
+
 	return nil
 }
 
