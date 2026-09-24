@@ -16,14 +16,14 @@ type Notifier interface {
 }
 
 // ============================================================================
-// GOTUNIX CUSTOM WEBHOOK NOTIFIER (LEGACY)
+// GOTCODE DISPATCH NOTIFIER (LEGACY)
 // ============================================================================
 
-type GotunixWebhookNotifier struct {
+type GotcodeDispatchNotifier struct {
 	WebhookURL string
 }
 
-func (g *GotunixWebhookNotifier) Send(title, description, host, targetFile string, color int) error {
+func (g *GotcodeDispatchNotifier) Send(title, description, host, targetFile string, color int) error {
 	if g.WebhookURL == "" {
 		return nil
 	}
@@ -52,7 +52,7 @@ func (g *GotunixWebhookNotifier) Send(title, description, host, targetFile strin
 	if err != nil { return err }
 	defer resp.Body.Close()
 
-	if resp.StatusCode >= 400 { return fmt.Errorf("gotunix webhook returned status %d", resp.StatusCode) }
+	if resp.StatusCode >= 400 { return fmt.Errorf("gotcode_dispatch webhook returned status %d", resp.StatusCode) }
 	return nil
 }
 
@@ -163,8 +163,8 @@ func SendNotifications(configs []NotificationConfig, title, description, host, t
 		switch strings.ToLower(cfg.Type) {
 		case "discord":
 			notifiers = append(notifiers, &DiscordNotifier{WebhookURL: cfg.URL})
-		case "gotunix_webhook":
-			notifiers = append(notifiers, &GotunixWebhookNotifier{WebhookURL: cfg.URL})
+		case "gotcode_dispatch":
+			notifiers = append(notifiers, &GotcodeDispatchNotifier{WebhookURL: cfg.URL})
 		case "email", "smtp":
 			notifiers = append(notifiers, &EmailNotifier{
 				Host: cfg.SMTPHost, Port: cfg.SMTPPort,
