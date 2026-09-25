@@ -44,6 +44,11 @@ type JobPreBackup struct {
 	PauseContainers []string `yaml:"pause_containers"`
 }
 
+type ColdStorageConfig struct {
+	Path           string `yaml:"path"`
+	RetentionCount int    `yaml:"retention_count"`
+}
+
 type JobConfig struct {
 	Name           string       `yaml:"name"`
 	Server         string       `yaml:"server"`
@@ -54,6 +59,7 @@ type JobConfig struct {
 	Paths          []string     `yaml:"paths"`
 	DockerVolumes  []string     `yaml:"docker_volumes"`
 	PreBackup      JobPreBackup `yaml:"pre_backup"`
+	ColdStorage    ColdStorageConfig `yaml:"cold_storage"`
 }
 
 func LoadConfig(basePath string) Config {

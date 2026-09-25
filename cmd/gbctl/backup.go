@@ -18,6 +18,7 @@ import (
 var (
 	filterSystem bool
 	filterDocker bool
+	filterTier string
 )
 
 var backupCmd = &cobra.Command{
@@ -30,7 +31,7 @@ var backupListCmd = &cobra.Command{
 	Short: "List backup archives",
 	Args:  cobra.MaximumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		req := &pb.ListBackupsRequest{}
+		req := &pb.ListBackupsRequest{Tier: strings.ToUpper(filterTier)}
 		var exactChain string
 		if len(args) == 1 {
 			if strings.HasSuffix(args[0], ".tar.gz") && strings.Contains(args[0], "_FULL_") {
@@ -79,14 +80,14 @@ var backupListCmd = &cobra.Command{
 		if len(filtered) == 0 { fmt.Println("No backups found."); return }
 		
 		w := tabwriter.NewWriter(os.Stdout, 0, 8, 4, ' ', 0)
-		fmt.Fprintln(w, "SERVER\tJOB\tARCHIVE TYPE\tARCHIVE\tSIZE\tMODIFIED")
-		fmt.Fprintln(w, "------\t---\t------------\t-------\t----\t--------")
+		fmt.Fprintln(w, "TIER\tSERVER\tJOB\tARCHIVE TYPE\tARCHIVE\tSIZE\tMODIFIED")
+		fmt.Fprintln(w, "----\t------\t---\t------------\t-------\t----\t--------")
 		for _, a := range filtered {
 			typeStr := "[" + a.ArchiveType + "]"
 			if a.ArchiveType == "INC" {
 				typeStr = "  └- " + typeStr
 			}
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", a.Server, a.Job, typeStr, a.Filename, formatSize(a.Size), a.Modified)
+			fmt.Fprintf(w, "[%s]\t%s\t%s\t%s\t%s\t%s\t%s\n", a.Tier, a.Server, a.Job, typeStr, a.Filename, formatSize(a.Size), a.Modified)
 		}
 		w.Flush()
 	},

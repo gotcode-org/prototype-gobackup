@@ -247,9 +247,21 @@ func (s *Server) RestoreBackup(req *pb.RestoreBackupRequest, stream pb.AdminServ
 	var foundPath string
 	var foundType string
 	
-	dirs := []struct{ Path, Type string }{
-		{s.cfg.BackupDir, "SYSTEM"},
-		{filepath.Join(s.cfg.BackupDir, "docker-volume"), "DOCKER"},
+	dirs := []struct{ Path, Type, Tier string }{
+		{s.cfg.BackupDir, "SYSTEM", "HOT"},
+		{filepath.Join(s.cfg.BackupDir, "docker-volume"), "DOCKER", "HOT"},
+	}
+	
+	// Add cold storage locations
+	addedColdPaths := make(map[string]bool)
+	for _, job := range s.cfg.Jobs {
+		if job.ColdStorage.Path != "" {
+			if !addedColdPaths[job.ColdStorage.Path] {
+				dirs = append(dirs, struct{ Path, Type, Tier string }{job.ColdStorage.Path, "SYSTEM", "COLD"})
+				dirs = append(dirs, struct{ Path, Type, Tier string }{filepath.Join(job.ColdStorage.Path, "docker-volume"), "DOCKER", "COLD"})
+				addedColdPaths[job.ColdStorage.Path] = true
+			}
+		}
 	}
 	for _, d := range dirs {
 		if _, err := os.Stat(filepath.Join(d.Path, req.Filename)); err == nil {
@@ -403,9 +415,21 @@ func (s *Server) ListBackups(ctx context.Context, req *pb.ListBackupsRequest) (*
 
 	var resp pb.ListBackupsResponse
 	
-	dirs := []struct{ Path, Type string }{
-		{s.cfg.BackupDir, "SYSTEM"},
-		{filepath.Join(s.cfg.BackupDir, "docker-volume"), "DOCKER"},
+	dirs := []struct{ Path, Type, Tier string }{
+		{s.cfg.BackupDir, "SYSTEM", "HOT"},
+		{filepath.Join(s.cfg.BackupDir, "docker-volume"), "DOCKER", "HOT"},
+	}
+	
+	// Add cold storage locations
+	addedColdPaths := make(map[string]bool)
+	for _, job := range s.cfg.Jobs {
+		if job.ColdStorage.Path != "" {
+			if !addedColdPaths[job.ColdStorage.Path] {
+				dirs = append(dirs, struct{ Path, Type, Tier string }{job.ColdStorage.Path, "SYSTEM", "COLD"})
+				dirs = append(dirs, struct{ Path, Type, Tier string }{filepath.Join(job.ColdStorage.Path, "docker-volume"), "DOCKER", "COLD"})
+				addedColdPaths[job.ColdStorage.Path] = true
+			}
+		}
 	}
 
 	for _, d := range dirs {
@@ -434,6 +458,12 @@ func (s *Server) ListBackups(ctx context.Context, req *pb.ListBackupsRequest) (*
 			if req.Target != "" && (serverName != req.Target && jobName != req.Target) {
 				continue
 			}
+			if req.Tier != "" && req.Tier != d.Tier {
+				continue
+			}
+			if req.Tier != "" && req.Tier != d.Tier {
+				continue
+			}
 
 			info, err := f.Info()
 			if err != nil { continue }
@@ -443,9 +473,10 @@ func (s *Server) ListBackups(ctx context.Context, req *pb.ListBackupsRequest) (*
 				Job:         jobName,
 				Filename:    f.Name(),
 				Size:        info.Size(),
-				Modified:    info.ModTime().Format("2006-01-02 15:04:05"),
+				Modified:   info.ModTime().Format("2006-01-02 15:04:05"),
 				Type:        d.Type,
 				ArchiveType: archiveType,
+				Tier:        d.Tier,
 			})
 
 		}
