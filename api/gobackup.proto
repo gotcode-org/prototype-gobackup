@@ -157,6 +157,8 @@ message AddJobRequest {
     repeated string pause_containers = 7;
     bool incremental = 8;
     int32 full_interval = 9;
+    string cold_storage_path = 10;
+    int32 cold_storage_retention = 11;
 }
 
 message ServerInfo {

@@ -28,6 +28,8 @@ var (
 	jobPause        string
 	jobIncremental  bool
 	jobFullInterval int
+	jobColdPath string
+	jobColdRetention int
 )
 
 var jobCmd = &cobra.Command{
@@ -40,7 +42,7 @@ var jobAddCmd = &cobra.Command{
 	Short: "Add a new job",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		req := &pb.AddJobRequest{Name: args[0], Server: jobServer, Schedule: jobSchedule, RetentionCount: int32(jobRetention), Incremental: jobIncremental, FullInterval: int32(jobFullInterval)}
+		req := &pb.AddJobRequest{Name: args[0], Server: jobServer, Schedule: jobSchedule, RetentionCount: int32(jobRetention), Incremental: jobIncremental, FullInterval: int32(jobFullInterval), ColdStoragePath: jobColdPath, ColdStorageRetention: int32(jobColdRetention)}
 		if jobPaths != "" { req.Paths = strings.Split(jobPaths, ",") }
 		if jobVolumes != "" { req.DockerVolumes = strings.Split(jobVolumes, ",") }
 		if jobPause != "" { req.PauseContainers = strings.Split(jobPause, ",") }
@@ -111,6 +113,8 @@ func init() {
 		jobAddCmd.Flags().StringVar(&jobPause, "pause", "", "Comma-separated list of Docker containers to pause")
 	jobAddCmd.Flags().BoolVar(&jobIncremental, "incremental", false, "Enable incremental backups (tar -g)")
 	jobAddCmd.Flags().IntVar(&jobFullInterval, "full-interval", 7, "Days between FULL backups when incremental is enabled")
+	jobAddCmd.Flags().StringVar(&jobColdPath, "cold-path", "", "Path to NFS or cold storage mount for expiring backups")
+	jobAddCmd.Flags().IntVar(&jobColdRetention, "cold-retention", 0, "Number of older chains to keep in cold storage")
 	jobRunCmd.Flags().BoolVar(&jobRunAttach, "attach", false, "Attach to the log stream immediately")
 	
 	jobCmd.AddCommand(jobAddCmd, jobListCmd, jobRmCmd, jobRunCmd)

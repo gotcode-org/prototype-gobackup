@@ -170,6 +170,7 @@ func (s *Server) AddJob(ctx context.Context, req *pb.AddJobRequest) (*pb.Generic
 		Paths:          req.Paths,
 		DockerVolumes:  req.DockerVolumes,
 		PreBackup:      JobPreBackup{PauseContainers: req.PauseContainers},
+		ColdStorage:    ColdStorageConfig{Path: req.ColdStoragePath, RetentionCount: int(req.ColdStorageRetention)},
 	}
 	
 	found := false
