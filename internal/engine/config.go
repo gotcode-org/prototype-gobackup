@@ -137,3 +137,4 @@ func WriteJobConfig(confDir string, job JobConfig) error {
 	if err != nil { return err }
 	return os.WriteFile(filepath.Join(dir, job.Name+".yaml"), data, 0644)
 }
+ 
