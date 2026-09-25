@@ -120,6 +120,15 @@ message UpcomingJob {
     string server = 5;
 }
 
+message StorageStat {
+    string path = 1;
+    string tier = 2;
+    int64 disk_total = 3;
+    int64 disk_used = 4;
+    int64 disk_free = 5;
+    int32 total_backups = 6;
+}
+
 message StatusResponse {
     bool online = 1;
     string active_job = 2;
@@ -129,6 +138,7 @@ message StatusResponse {
     int64 disk_used = 6;
     int64 disk_free = 7;
     int32 total_backups = 8;
+    repeated StorageStat storage_stats = 9;
 }
 
 message RemoveBackupRequest {

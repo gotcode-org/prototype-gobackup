@@ -97,13 +97,28 @@ var statusCmd = &cobra.Command{
 		
 		fmt.Println("\n💾 Backup Storage Statistics:")
 		fmt.Println("-----------------------------------------------------")
-		fmt.Printf("Total Archives: %d\n", resp.TotalBackups)
-		if resp.DiskTotal > 0 {
-			pct := float64(resp.DiskFree) / float64(resp.DiskTotal) * 100
-			fmt.Printf("Storage Usage:  %s / %s (%.1f%% Free)\n", formatSize(resp.DiskUsed), formatSize(resp.DiskTotal), pct)
-		} else {
-			fmt.Println("Storage Usage:  Unknown (Cannot stat directory)")
+		fmt.Printf("Total Archives: %d\n\n", resp.TotalBackups)
+		
+		wStat := tabwriter.NewWriter(os.Stdout, 0, 8, 4, ' ', 0)
+		fmt.Fprintln(wStat, "TIER\tPATH\tARCHIVES\tUSED\tTOTAL\tFREE %")
+		fmt.Fprintln(wStat, "----\t----\t--------\t----\t-----\t------")
+		
+		for _, stat := range resp.StorageStats {
+			pct := 0.0
+			usedStr := "Unknown"
+			totalStr := "Unknown"
+			pctStr := "Unknown"
+			
+			if stat.DiskTotal > 0 {
+				pct = float64(stat.DiskFree) / float64(stat.DiskTotal) * 100
+				usedStr = formatSize(stat.DiskUsed)
+				totalStr = formatSize(stat.DiskTotal)
+				pctStr = fmt.Sprintf("%.1f%%", pct)
+			}
+			
+			fmt.Fprintf(wStat, "%s\t%s\t%d\t%s\t%s\t%s\n", stat.Tier, stat.Path, stat.TotalBackups, usedStr, totalStr, pctStr)
 		}
+		wStat.Flush()
 		
 		fmt.Println()
 	},
