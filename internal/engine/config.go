@@ -23,6 +23,7 @@ type NotificationConfig struct {
 
 type Config struct {
 	BackupDir     string               `yaml:"backup_dir"`
+	ColdStoragePath string             `yaml:"cold_storage_path"`
 	Notifications []NotificationConfig `yaml:"notifications"` // Replaced single WebhookURL
 	ConfDir       string               `yaml:"conf_dir"`
 	DBPath        string               `yaml:"db_path"`
@@ -58,6 +59,7 @@ type JobConfig struct {
 	FullInterval   int          `yaml:"full_interval"`
 	Paths          []string     `yaml:"paths"`
 	DockerVolumes  []string     `yaml:"docker_volumes"`
+	HotStoragePath string       `yaml:"hot_storage_path"`
 	PreBackup      JobPreBackup `yaml:"pre_backup"`
 	ColdStorage    ColdStorageConfig `yaml:"cold_storage"`
 }

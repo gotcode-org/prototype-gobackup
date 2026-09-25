@@ -30,6 +30,7 @@ var (
 	jobFullInterval int
 	jobColdPath string
 	jobColdRetention int
+	jobHotPath string
 )
 
 var jobCmd = &cobra.Command{
@@ -42,7 +43,7 @@ var jobAddCmd = &cobra.Command{
 	Short: "Add a new job",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		req := &pb.AddJobRequest{Name: args[0], Server: jobServer, Schedule: jobSchedule, RetentionCount: int32(jobRetention), Incremental: jobIncremental, FullInterval: int32(jobFullInterval), ColdStoragePath: jobColdPath, ColdStorageRetention: int32(jobColdRetention)}
+		req := &pb.AddJobRequest{Name: args[0], Server: jobServer, Schedule: jobSchedule, RetentionCount: int32(jobRetention), Incremental: jobIncremental, FullInterval: int32(jobFullInterval), ColdStoragePath: jobColdPath, ColdStorageRetention: int32(jobColdRetention), HotStoragePath: jobHotPath}
 		if jobPaths != "" { req.Paths = strings.Split(jobPaths, ",") }
 		if jobVolumes != "" { req.DockerVolumes = strings.Split(jobVolumes, ",") }
 		if jobPause != "" { req.PauseContainers = strings.Split(jobPause, ",") }
@@ -73,8 +74,8 @@ var jobListCmd = &cobra.Command{
 		if err != nil { log.Fatalf("❌ RPC Error: %v", err) }
 		if len(resp.Jobs) == 0 { fmt.Println("No jobs configured."); return }
 		w := tabwriter.NewWriter(os.Stdout, 0, 8, 4, ' ', 0)
-		fmt.Fprintln(w, "SERVER\tJOB\tSCHEDULE\tINCREMENTAL\tINTERVAL\tHOT RETENTION\tCOLD PATH\tCOLD RETENTION")
-		fmt.Fprintln(w, "------\t---\t--------\t-----------\t--------\t-------------\t---------\t--------------")
+		fmt.Fprintln(w, "SERVER\tJOB\tSCHEDULE\tINCREMENTAL\tINTERVAL\tHOT PATH\tHOT RETENTION\tCOLD PATH\tCOLD RETENTION")
+		fmt.Fprintln(w, "------\t---\t--------\t-----------\t--------\t--------\t-------------\t---------\t--------------")
 		for _, j := range resp.Jobs {
 			incStr := "No"
 			if j.Incremental { incStr = "Yes" }
@@ -82,7 +83,9 @@ var jobListCmd = &cobra.Command{
 			if j.Incremental { intervalStr = fmt.Sprintf("%d days", j.FullInterval) }
 			coldPathStr := j.ColdStoragePath
 		if coldPathStr == "" { coldPathStr = "-" }
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%d chains\t%s\t%d chains\n", j.Server, j.Name, j.Schedule, incStr, intervalStr, j.RetentionCount, coldPathStr, j.ColdStorageRetention)
+		hotPathStr := j.HotStoragePath
+		if hotPathStr == "" { hotPathStr = "Global Default" }
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%d chains\t%s\t%d chains\n", j.Server, j.Name, j.Schedule, incStr, intervalStr, hotPathStr, j.RetentionCount, coldPathStr, j.ColdStorageRetention)
 		}
 		w.Flush()
 	},
@@ -117,6 +120,7 @@ func init() {
 	jobAddCmd.Flags().IntVar(&jobFullInterval, "full-interval", 7, "Days between FULL backups when incremental is enabled")
 	jobAddCmd.Flags().StringVar(&jobColdPath, "cold-path", "", "Path to NFS or cold storage mount for expiring backups")
 	jobAddCmd.Flags().IntVar(&jobColdRetention, "cold-retention", 0, "Number of older chains to keep in cold storage")
+	jobAddCmd.Flags().StringVar(&jobHotPath, "hot-path", "", "Path to keep hot backups (overrides global backup_dir)")
 	jobRunCmd.Flags().BoolVar(&jobRunAttach, "attach", false, "Attach to the log stream immediately")
 	
 	jobCmd.AddCommand(jobAddCmd, jobListCmd, jobRmCmd, jobRunCmd)

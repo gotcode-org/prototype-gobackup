@@ -159,6 +159,7 @@ message AddJobRequest {
     int32 full_interval = 9;
     string cold_storage_path = 10;
     int32 cold_storage_retention = 11;
+    string hot_storage_path = 12;
 }
 
 message ServerInfo {
@@ -178,6 +179,7 @@ message JobInfo {
     int32 full_interval = 6;
     string cold_storage_path = 7;
     int32 cold_storage_retention = 8;
+    string hot_storage_path = 9;
 }
 
 message ListServerResponse {

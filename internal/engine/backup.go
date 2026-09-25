@@ -267,9 +267,11 @@ func resetSnapshot(srv ServerConfig, job JobConfig, volName string, ui tui.Backu
 }
 
 func RunSingleBackup(cfg Config, job JobConfig, ui tui.BackupUI) {
-	if err := verifyNFSMount(cfg.BackupDir); err != nil {
+	hotPath := job.HotStoragePath
+	if hotPath == "" { hotPath = cfg.BackupDir }
+	if err := verifyNFSMount(hotPath); err != nil {
 		ui.Log("❌ Backup Failed: %v", err)
-		SendNotification(cfg.Notifications, "❌ Critical Storage Error", fmt.Sprintf("Backup aborted for **%s/%s**.\n\n%v", job.Server, job.Name, err), 0xFF0000, job.Server, cfg.BackupDir, ui)
+		SendNotification(cfg.Notifications, "❌ Critical Storage Error", fmt.Sprintf("Backup aborted for **%s/%s**.\n\n%v", job.Server, job.Name, err), 0xFF0000, job.Server, hotPath, ui)
 		return
 	}
 	var targetServer *ServerConfig
@@ -298,12 +300,12 @@ func RunSingleBackup(cfg Config, job JobConfig, ui tui.BackupUI) {
 		GlobalBackupQueue.Unlock()
 	}()
 
-	if err := os.MkdirAll(cfg.BackupDir, 0755); err != nil {
-		ui.Log("❌ Failed to create backup directory %s: %v", cfg.BackupDir, err)
+	if err := os.MkdirAll(hotPath, 0755); err != nil {
+		ui.Log("❌ Failed to create backup directory %s: %v", hotPath, err)
 		return
 	}
 	
-	dockerDir := filepath.Join(cfg.BackupDir, "docker-volume")
+	dockerDir := filepath.Join(hotPath, "docker-volume")
 	if len(job.DockerVolumes) > 0 {
 		if err := os.MkdirAll(dockerDir, 0755); err != nil {
 			ui.Log("❌ Failed to create docker-volume directory %s: %v", dockerDir, err)
@@ -319,7 +321,7 @@ func RunSingleBackup(cfg Config, job JobConfig, ui tui.BackupUI) {
 	if len(job.Paths) > 0 {
 		isFull := true
 		if job.Incremental {
-			isFull = isTimeForFullBackup(cfg.BackupDir, job, "")
+			isFull = isTimeForFullBackup(hotPath, job, "")
 		}
 		archiveType := "FULL"
 		if job.Incremental && !isFull { archiveType = "INC" }
@@ -327,7 +329,7 @@ func RunSingleBackup(cfg Config, job JobConfig, ui tui.BackupUI) {
 		
 		timestamp := time.Now().Format("20060102_150405")
 		fileName := fmt.Sprintf("%s_%s_%s_%s.tar.gz", job.Server, job.Name, archiveType, timestamp)
-		targetFile := filepath.Join(cfg.BackupDir, fileName)
+		targetFile := filepath.Join(hotPath, fileName)
 
 		// Pre-create snapshots dir just in case it doesn't exist
 		if job.Incremental {
@@ -422,7 +424,7 @@ func RunSingleBackup(cfg Config, job JobConfig, ui tui.BackupUI) {
 	}
 	
 	// Prune just this host after it finishes
-	CleanupOldBackups(cfg.BackupDir, []JobConfig{job}, ui)
+	CleanupOldBackups(hotPath, []JobConfig{job}, ui)
 }
 
 func executeBackupCommand(cfg Config, job JobConfig, srv ServerConfig, ui tui.BackupUI, cmd *exec.Cmd, targetFile string, backupType string) {

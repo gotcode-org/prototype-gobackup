@@ -170,7 +170,8 @@ func (s *Server) AddJob(ctx context.Context, req *pb.AddJobRequest) (*pb.Generic
 		Paths:          req.Paths,
 		DockerVolumes:  req.DockerVolumes,
 		PreBackup:      JobPreBackup{PauseContainers: req.PauseContainers},
-		ColdStorage:    ColdStorageConfig{Path: req.ColdStoragePath, RetentionCount: int(req.ColdStorageRetention)},
+		HotStoragePath: req.HotStoragePath,
+			ColdStorage:    ColdStorageConfig{Path: req.ColdStoragePath, RetentionCount: int(req.ColdStorageRetention)},
 	}
 	
 	found := false
@@ -223,6 +224,7 @@ func (s *Server) ListJobs(ctx context.Context, req *pb.ListRequest) (*pb.ListJob
 			FullInterval:   int32(job.FullInterval),
 			ColdStoragePath: job.ColdStorage.Path,
 			ColdStorageRetention: int32(job.ColdStorage.RetentionCount),
+			HotStoragePath: job.HotStoragePath,
 		})
 	}
 	return &resp, nil
@@ -258,6 +260,13 @@ func (s *Server) RestoreBackup(req *pb.RestoreBackupRequest, stream pb.AdminServ
 	// Add cold storage locations
 	addedColdPaths := make(map[string]bool)
 	for _, job := range s.cfg.Jobs {
+		if job.HotStoragePath != "" {
+			if !addedColdPaths[job.HotStoragePath] {
+				dirs = append(dirs, struct{ Path, Type, Tier string }{job.HotStoragePath, "SYSTEM", "HOT"})
+				dirs = append(dirs, struct{ Path, Type, Tier string }{filepath.Join(job.HotStoragePath, "docker-volume"), "DOCKER", "HOT"})
+				addedColdPaths[job.HotStoragePath] = true
+			}
+		}
 		if job.ColdStorage.Path != "" {
 			if !addedColdPaths[job.ColdStorage.Path] {
 				dirs = append(dirs, struct{ Path, Type, Tier string }{job.ColdStorage.Path, "SYSTEM", "COLD"})
