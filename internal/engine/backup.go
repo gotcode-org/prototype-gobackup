@@ -2,6 +2,7 @@ package engine
 
 import (
 	"sync"
+	"context"
 	"fmt"
 	
 	"os"
@@ -42,6 +43,32 @@ var (
 	ActiveJob  string
 	QueuedJobs []string
 )
+
+func verifyNFSMount(mountPath string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		sentinelPath := filepath.Join(mountPath, ".gobackup_mounted")
+		_, err := os.Stat(sentinelPath)
+		errCh <- err
+	}()
+
+	select {
+	case <-ctx.Done():
+		return fmt.Errorf("NFS Mount is stale or unresponsive (timeout after 3s)")
+	case err := <-errCh:
+		if os.IsNotExist(err) {
+			return fmt.Errorf("Target storage volume is unmounted (missing .gobackup_mounted)")
+		}
+		if err != nil {
+			return fmt.Errorf("NFS check failed: %v", err)
+		}
+		return nil
+	}
+}
+
 type JobResult struct {
 	Server   string
 	Job      string
@@ -239,6 +266,11 @@ func resetSnapshot(srv ServerConfig, job JobConfig, volName string, ui tui.Backu
 }
 
 func RunSingleBackup(cfg Config, job JobConfig, ui tui.BackupUI) {
+	if err := verifyNFSMount(cfg.BackupDir); err != nil {
+		ui.Log("❌ Backup Failed: %v", err)
+		SendNotification(cfg.Notifications, "❌ Critical Storage Error", fmt.Sprintf("Backup aborted for **%s/%s**.\n\n%v", job.Server, job.Name, err), 0xFF0000, job.Server, cfg.BackupDir, ui)
+		return
+	}
 	var targetServer *ServerConfig
 	for _, srv := range cfg.Servers {
 		if srv.Name == job.Server {
@@ -442,6 +474,10 @@ func executeBackupCommand(cfg Config, job JobConfig, srv ServerConfig, ui tui.Ba
 }
 
 func CleanupOldBackups(dir string, jobs []JobConfig, ui tui.BackupUI) {
+	if err := verifyNFSMount(dir); err != nil {
+		ui.Log("❌ Prune Failed: %v", err)
+		return
+	}
 	dirsToClean := []string{dir, filepath.Join(dir, "docker-volume")}
 
 	for _, cleanDir := range dirsToClean {
