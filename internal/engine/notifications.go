@@ -335,7 +335,7 @@ func buildFancyHTML(title, description, host, targetFile string, color int) stri
 
 	htmlDesc := strings.ReplaceAll(description, "\n", "<br>")
 	// Parse simple markdown bold tags so the Discord digest formatting renders as true HTML bold in the email
-	htmlDesc = regexp.MustCompile("\\*\\*(.*?)\\*\\*").ReplaceAllString(htmlDesc, "<strong></strong>")
+	htmlDesc = regexp.MustCompile("\\*\\*(.*?)\\*\\*").ReplaceAllString(htmlDesc, "<strong>$1</strong>")
 
 	return fmt.Sprintf(`
 		<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f9fafb; padding: 20px; border-radius: 8px;">
