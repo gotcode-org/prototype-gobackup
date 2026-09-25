@@ -432,15 +432,33 @@ func (s *Server) ListBackups(ctx context.Context, req *pb.ListBackupsRequest) (*
 		{filepath.Join(s.cfg.BackupDir, "docker-volume"), "DOCKER", "HOT"},
 	}
 	
-	// Add cold storage locations
-	addedColdPaths := make(map[string]bool)
+	// Add hot and cold storage locations dynamically
+	addedPaths := make(map[string]bool)
+	addedPaths[s.cfg.BackupDir] = true // Already added manually above
+
+	// Add global cold path
+	if s.cfg.ColdStoragePath != "" {
+		dirs = append(dirs, struct{ Path, Type, Tier string }{s.cfg.ColdStoragePath, "SYSTEM", "COLD"})
+		dirs = append(dirs, struct{ Path, Type, Tier string }{filepath.Join(s.cfg.ColdStoragePath, "docker-volume"), "DOCKER", "COLD"})
+		addedPaths[s.cfg.ColdStoragePath] = true
+	}
+
 	for _, job := range s.cfg.Jobs {
-		if job.ColdStorage.Path != "" {
-			if !addedColdPaths[job.ColdStorage.Path] {
-				dirs = append(dirs, struct{ Path, Type, Tier string }{job.ColdStorage.Path, "SYSTEM", "COLD"})
-				dirs = append(dirs, struct{ Path, Type, Tier string }{filepath.Join(job.ColdStorage.Path, "docker-volume"), "DOCKER", "COLD"})
-				addedColdPaths[job.ColdStorage.Path] = true
-			}
+		// Hot paths
+		hotPathStr := job.HotStoragePath
+		if hotPathStr != "" && !addedPaths[hotPathStr] {
+			dirs = append(dirs, struct{ Path, Type, Tier string }{hotPathStr, "SYSTEM", "HOT"})
+			dirs = append(dirs, struct{ Path, Type, Tier string }{filepath.Join(hotPathStr, "docker-volume"), "DOCKER", "HOT"})
+			addedPaths[hotPathStr] = true
+		}
+
+		// Cold paths
+		coldPathStr := job.ColdStorage.Path
+		if coldPathStr == "" { coldPathStr = s.cfg.ColdStoragePath }
+		if coldPathStr != "" && !addedPaths[coldPathStr] {
+			dirs = append(dirs, struct{ Path, Type, Tier string }{coldPathStr, "SYSTEM", "COLD"})
+			dirs = append(dirs, struct{ Path, Type, Tier string }{filepath.Join(coldPathStr, "docker-volume"), "DOCKER", "COLD"})
+			addedPaths[coldPathStr] = true
 		}
 	}
 
