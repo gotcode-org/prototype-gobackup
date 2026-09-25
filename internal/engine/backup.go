@@ -573,6 +573,69 @@ func CleanupOldBackups(dir string, jobs []JobConfig, ui tui.BackupUI) {
 			}
 		}
 	}
+	
+	CleanupColdStorage(jobs, ui)
+}
+
+func CleanupColdStorage(jobs []JobConfig, ui tui.BackupUI) {
+	for _, job := range jobs {
+		if job.ColdStorage.Path == "" || job.ColdStorage.RetentionCount <= 0 { continue }
+		if err := verifyNFSMount(job.ColdStorage.Path); err != nil {
+			ui.Log("❌ Cold Prune Failed for %s: %v", job.Name, err)
+			continue
+		}
+		
+		dirsToClean := []string{job.ColdStorage.Path, filepath.Join(job.ColdStorage.Path, "docker-volume")}
+		for _, cleanDir := range dirsToClean {
+			files, err := os.ReadDir(cleanDir)
+			if err != nil { continue }
+			
+			vols := job.DockerVolumes
+			if len(vols) == 0 { vols = []string{""} } else { vols = append(vols, "") }
+			
+			for _, vol := range vols {
+				var hostBackups []os.FileInfo
+				for _, entry := range files {
+					if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".tar.gz") { continue }
+					prefix := job.Server + "_" + job.Name + "_"
+					if vol != "" { prefix += vol + "_" }
+					
+					if strings.HasPrefix(entry.Name(), prefix) {
+						parts := strings.Split(entry.Name(), "_")
+						isDockerFile := len(parts) >= 6
+						if vol == "" && isDockerFile { continue }
+						if vol != "" && !isDockerFile { continue }
+						
+						info, err := entry.Info()
+						if err == nil { hostBackups = append(hostBackups, info) }
+					}
+				}
+				
+				sort.Slice(hostBackups, func(i, j int) bool { return hostBackups[i].ModTime().Before(hostBackups[j].ModTime()) })
+				
+				var chains [][]os.FileInfo
+				for _, backup := range hostBackups {
+					isInc := strings.Contains(backup.Name(), "_INC_")
+					if !isInc || len(chains) == 0 {
+						chains = append(chains, []os.FileInfo{backup})
+					} else {
+						chains[len(chains)-1] = append(chains[len(chains)-1], backup)
+					}
+				}
+				
+				if len(chains) > job.ColdStorage.RetentionCount {
+					numToDelete := len(chains) - job.ColdStorage.RetentionCount
+					for i := 0; i < numToDelete; i++ {
+						for _, oldBackup := range chains[i] {
+							oldPath := filepath.Join(cleanDir, oldBackup.Name())
+							os.Remove(oldPath)
+							ui.Summary("   🧊🗑️  Pruned expired cold storage backup for %s: %s", job.Name, oldBackup.Name())
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 
