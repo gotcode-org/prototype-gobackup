@@ -30,7 +30,7 @@ func (s *Scheduler) Start() {
 		// Capture variable for the goroutine closure
 		j := job
 		_, err := s.cron.AddFunc(j.Schedule, func() {
-			daemonUI := &DaemonLogger{hostName: j.Name}
+			daemonUI := &DaemonLogger{hostName: j.Server + "@" + j.Name}
 			RunSingleBackup(s.cfg, j, daemonUI)
 		})
 		

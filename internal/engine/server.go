@@ -85,7 +85,7 @@ func (s *Server) StartBackup(ctx context.Context, req *pb.BackupRequest) (*pb.Ba
 		if req.TargetJob != "" && job.Name != req.TargetJob { continue }
 		count++
 		go func(j JobConfig) {
-			daemonUI := &DaemonLogger{hostName: j.Name}
+			daemonUI := &DaemonLogger{hostName: j.Server + "@" + j.Name}
 			RunSingleBackup(s.cfg, j, daemonUI)
 		}(job)
 	}
