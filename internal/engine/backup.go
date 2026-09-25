@@ -545,8 +545,28 @@ func CleanupOldBackups(dir string, jobs []JobConfig, ui tui.BackupUI) {
 					for i := 0; i < numToDelete; i++ {
 						for _, oldBackup := range chains[i] {
 							oldPath := filepath.Join(cleanDir, oldBackup.Name())
-							os.Remove(oldPath)
-							ui.Summary("   🗑️  Pruned old backup for %s: %s", job.Name, oldBackup.Name())
+							
+							// Check if Cold Storage is configured
+							if job.ColdStorage.Path != "" {
+								coldDir := job.ColdStorage.Path
+								// If it's a docker volume backup, it goes into the docker-volume subfolder
+								if strings.Contains(cleanDir, "docker-volume") {
+									coldDir = filepath.Join(job.ColdStorage.Path, "docker-volume")
+								}
+								os.MkdirAll(coldDir, 0755)
+								newPath := filepath.Join(coldDir, oldBackup.Name())
+								
+								// Move file instead of deleting
+								err := os.Rename(oldPath, newPath)
+								if err != nil {
+									ui.Summary("   ❌ Failed to move %s to cold storage: %v", oldBackup.Name(), err)
+								} else {
+									ui.Summary("   ❄️  Moved expiring backup to cold storage: %s", oldBackup.Name())
+								}
+							} else {
+								os.Remove(oldPath)
+								ui.Summary("   🗑️  Pruned old backup for %s: %s", job.Name, oldBackup.Name())
+							}
 						}
 					}
 				}
