@@ -85,10 +85,21 @@ func EnqueueJob(host string, cfg Config) {
 		go func(c Config) {
 			time.Sleep(2 * time.Second)
 			StateMutex.Lock()
-			jobsList := make([]string, len(QueuedJobs))
-			copy(jobsList, QueuedJobs)
-			if ActiveJob != "" {
-				jobsList = append([]string{ActiveJob + " (Running)"}, jobsList...)
+			
+			// If the batch completely finished before the 2-second debouncer woke up (a hyper-fast job), abort!
+			if !IsBatchActive {
+				StateMutex.Unlock()
+				return
+			}
+			
+			jobsList := make([]string, len(BatchEnqueuedJobs))
+			copy(jobsList, BatchEnqueuedJobs)
+			
+			// Highlight the active job
+			for i, j := range jobsList {
+				if j == ActiveJob {
+					jobsList[i] = j + " (Running)"
+				}
 			}
 			StateMutex.Unlock()
 
