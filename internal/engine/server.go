@@ -356,7 +356,7 @@ func (s *Server) RestoreBackup(req *pb.RestoreBackupRequest, stream pb.AdminServ
 		if req.TargetVol != "" {
 			sendLog(stream, fmt.Sprintf("🐳 Spinning up ephemeral Alpine container to restore into volume: %s", req.TargetVol))
 			// Docker restore pipeline
-			dockerCmd := fmt.Sprintf("docker run --rm -i -v %s:/dest alpine tar -xvzf - -g /dev/null -C /dest", req.TargetVol)
+			dockerCmd := fmt.Sprintf("docker run --rm -i -v %s:/dest ubuntu tar -xvzf - -g /dev/null -C /dest", req.TargetVol)
 			if isLocal {
 				cmd = exec.Command("sh", "-c", dockerCmd)
 			} else {
