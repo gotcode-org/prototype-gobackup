@@ -112,7 +112,9 @@ var backupRmCmd = &cobra.Command{
 
 
 
-var restoreDest string
+var targetPath string
+var targetVol string
+var restoreDockerDest string
 
 var backupRestoreCmd = &cobra.Command{
 	Use:   "restore [filename]",
@@ -126,7 +128,7 @@ var backupRestoreCmd = &cobra.Command{
 		defer conn.Close()
 		client := pb.NewAdminServiceClient(conn)
 		
-		req := &pb.RestoreBackupRequest{Filename: args[0], TargetDir: restoreDest}
+		req := &pb.RestoreBackupRequest{Filename: args[0], TargetPath: targetPath, TargetVol: targetVol}
 		stream, err := client.RestoreBackup(context.Background(), req)
 		if err != nil { log.Fatalf("❌ RPC Error: %v", err) }
 		
@@ -146,6 +148,8 @@ func init() {
 	backupListCmd.Flags().BoolVar(&filterDocker, "docker", false, "Filter to show only DOCKER backups")
 	
 	backupCmd.AddCommand(backupListCmd, backupRmCmd, backupRestoreCmd)
-	backupRestoreCmd.Flags().StringVar(&restoreDest, "dest", "/home/backup/RESTORE", "Target directory to restore the backup into")
+	backupRestoreCmd.Flags().StringVar(&targetPath, "target-path", "/home/backup/RESTORE", "Target directory to restore the backup into")
+	backupRestoreCmd.Flags().StringVar(&targetVol, "target-vol", "", "Target Docker volume to natively restore the archive into (overrides --target-path)")
+	backupRestoreCmd.Flags().StringVar(&restoreDockerDest, "docker-dest", "", "Target Docker volume to natively restore the archive into (overrides --dest)")
 	rootCmd.AddCommand(backupCmd)
 }

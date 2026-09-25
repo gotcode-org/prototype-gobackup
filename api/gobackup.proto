@@ -42,7 +42,8 @@ service AdminService {
 
 message RestoreBackupRequest {
     string filename = 1;
-    string target_dir = 2;
+    string target_path = 2;
+  string target_vol = 3;
 }
 
 message RestoreLogChunk {

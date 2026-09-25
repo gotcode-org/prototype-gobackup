@@ -350,24 +350,38 @@ func (s *Server) RestoreBackup(req *pb.RestoreBackupRequest, stream pb.AdminServ
 			return nil
 		}
 		
-		// Ensure target dir exists
-		mkdirCmd := fmt.Sprintf("mkdir -p %s", req.TargetDir)
-		var cmdMkdir *exec.Cmd
-		if targetServer.Address == "localhost" || targetServer.Address == "127.0.0.1" || targetServer.Address == "local" {
-			cmdMkdir = exec.Command("sh", "-c", mkdirCmd)
-		} else {
-			args := []string{"-p", strconv.Itoa(targetServer.Port), targetServer.Address, mkdirCmd}
-			cmdMkdir = exec.Command("ssh", args...)
-		}
-		cmdMkdir.Run()
-		
-		// Tar extract stream
 		var cmd *exec.Cmd
-		if targetServer.Address == "localhost" || targetServer.Address == "127.0.0.1" || targetServer.Address == "local" {
-			cmd = exec.Command("tar", "-xvzf", "-", "-g", "/dev/null", "-C", req.TargetDir)
+		isLocal := targetServer.Address == "localhost" || targetServer.Address == "127.0.0.1" || targetServer.Address == "local"
+		
+		if req.TargetVol != "" {
+			sendLog(stream, fmt.Sprintf("🐳 Spinning up ephemeral Alpine container to restore into volume: %s", req.TargetVol))
+			// Docker restore pipeline
+			dockerCmd := fmt.Sprintf("docker run --rm -i -v %s:/dest alpine tar -xvzf - -g /dev/null -C /dest", req.TargetVol)
+			if isLocal {
+				cmd = exec.Command("sh", "-c", dockerCmd)
+			} else {
+				args := []string{"-p", strconv.Itoa(targetServer.Port), targetServer.Address, dockerCmd}
+				cmd = exec.Command("ssh", args...)
+			}
 		} else {
-			args := []string{"-p", strconv.Itoa(targetServer.Port), targetServer.Address, "tar", "-xvzf", "-", "-g", "/dev/null", "-C", req.TargetDir}
-			cmd = exec.Command("ssh", args...)
+			// Ensure target dir exists
+			mkdirCmd := fmt.Sprintf("mkdir -p %s", req.TargetPath)
+			var cmdMkdir *exec.Cmd
+			if isLocal {
+				cmdMkdir = exec.Command("sh", "-c", mkdirCmd)
+			} else {
+				args := []string{"-p", strconv.Itoa(targetServer.Port), targetServer.Address, mkdirCmd}
+				cmdMkdir = exec.Command("ssh", args...)
+			}
+			cmdMkdir.Run()
+			
+			// Host tar extraction pipeline
+			if isLocal {
+				cmd = exec.Command("tar", "-xvzf", "-", "-g", "/dev/null", "-C", req.TargetPath)
+			} else {
+				args := []string{"-p", strconv.Itoa(targetServer.Port), targetServer.Address, "tar", "-xvzf", "-", "-g", "/dev/null", "-C", req.TargetPath}
+				cmd = exec.Command("ssh", args...)
+			}
 		}
 		
 		cmd.Stdin = file
