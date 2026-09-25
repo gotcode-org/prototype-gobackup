@@ -6,6 +6,7 @@ GoBackup is a blazing-fast, single-binary, client-server backup orchestration en
 
 * **Zero-Dependency Native Execution**: Runs purely over standard SSH using native GNU `tar`. No need to install agents, Borg, Restic, or rsyncd on the target servers.
 * **Smart Incremental Chains**: Fully supports `--listed-incremental` (`-g`) tarball chains. The engine automatically rotates Full and Incremental backups based on interval schedules and seamlessly prunes orphaned chains to maintain healthy retention policies.
+* **Dual-Tier Archiving (Cold Storage)**: Dynamically ferry expired local backups (Hot Storage) to cheap, high-capacity NFS or cloud mount points (Cold Storage). Native support for job-level path routing and strict chain-retention pruning.
 * **Docker Volume Aware**: Automatically spins up disposable utility containers to backup live Docker volumes securely, even traversing files owned by root, without needing to map unprivileged UIDs.
 * **Reverse-Stream Restorations**: Select a backup from the CLI, and the engine will seamlessly trace the chain back to the anchor `[FULL]` backup and sequentially stream the tarballs backwards over an SSH pipe to perfectly rebuild the filesystem state on the target machine.
 * **Live TUI Log Streaming**: Trigger backup jobs manually from the CLI and instantly attach to the daemon's live log stream to watch the execution in real time.
