@@ -73,14 +73,16 @@ var jobListCmd = &cobra.Command{
 		if err != nil { log.Fatalf("❌ RPC Error: %v", err) }
 		if len(resp.Jobs) == 0 { fmt.Println("No jobs configured."); return }
 		w := tabwriter.NewWriter(os.Stdout, 0, 8, 4, ' ', 0)
-		fmt.Fprintln(w, "SERVER\tJOB\tSCHEDULE\tINCREMENTAL\tINTERVAL\tRETENTION")
-		fmt.Fprintln(w, "------\t---\t--------\t-----------\t--------\t---------")
+		fmt.Fprintln(w, "SERVER\tJOB\tSCHEDULE\tINCREMENTAL\tINTERVAL\tHOT RETENTION\tCOLD PATH\tCOLD RETENTION")
+		fmt.Fprintln(w, "------\t---\t--------\t-----------\t--------\t-------------\t---------\t--------------")
 		for _, j := range resp.Jobs {
 			incStr := "No"
 			if j.Incremental { incStr = "Yes" }
 			intervalStr := "-"
 			if j.Incremental { intervalStr = fmt.Sprintf("%d days", j.FullInterval) }
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%d chains\n", j.Server, j.Name, j.Schedule, incStr, intervalStr, j.RetentionCount)
+			coldPathStr := j.ColdStoragePath
+		if coldPathStr == "" { coldPathStr = "-" }
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%d chains\t%s\t%d chains\n", j.Server, j.Name, j.Schedule, incStr, intervalStr, j.RetentionCount, coldPathStr, j.ColdStorageRetention)
 		}
 		w.Flush()
 	},

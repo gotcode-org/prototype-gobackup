@@ -176,6 +176,8 @@ message JobInfo {
     int32 retention_count = 4;
     bool incremental = 5;
     int32 full_interval = 6;
+    string cold_storage_path = 7;
+    int32 cold_storage_retention = 8;
 }
 
 message ListServerResponse {

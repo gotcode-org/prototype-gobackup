@@ -221,6 +221,8 @@ func (s *Server) ListJobs(ctx context.Context, req *pb.ListRequest) (*pb.ListJob
 			RetentionCount: int32(job.RetentionCount),
 			Incremental:    job.Incremental,
 			FullInterval:   int32(job.FullInterval),
+			ColdStoragePath: job.ColdStorage.Path,
+			ColdStorageRetention: int32(job.ColdStorage.RetentionCount),
 		})
 	}
 	return &resp, nil
