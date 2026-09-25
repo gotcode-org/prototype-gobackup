@@ -252,27 +252,39 @@ func (s *Server) RestoreBackup(req *pb.RestoreBackupRequest, stream pb.AdminServ
 	var foundPath string
 	var foundType string
 	
-	dirs := []struct{ Path, Type, Tier string }{
-		{s.cfg.BackupDir, "SYSTEM", "HOT"},
-		{filepath.Join(s.cfg.BackupDir, "docker-volume"), "DOCKER", "HOT"},
+	var dirs []struct{ Path, Type, Tier string }
+
+	// Add hot and cold storage locations dynamically
+	addedPaths := make(map[string]bool)
+
+	// Global Hot
+	dirs = append(dirs, struct{ Path, Type, Tier string }{s.cfg.BackupDir, "SYSTEM", "HOT"})
+	dirs = append(dirs, struct{ Path, Type, Tier string }{filepath.Join(s.cfg.BackupDir, "docker-volume"), "DOCKER", "HOT"})
+	addedPaths[s.cfg.BackupDir] = true
+
+	// Global Cold
+	if s.cfg.ColdStoragePath != "" {
+		dirs = append(dirs, struct{ Path, Type, Tier string }{s.cfg.ColdStoragePath, "SYSTEM", "COLD"})
+		dirs = append(dirs, struct{ Path, Type, Tier string }{filepath.Join(s.cfg.ColdStoragePath, "docker-volume"), "DOCKER", "COLD"})
+		addedPaths[s.cfg.ColdStoragePath] = true
 	}
-	
-	// Add cold storage locations
-	addedColdPaths := make(map[string]bool)
+
 	for _, job := range s.cfg.Jobs {
-		if job.HotStoragePath != "" {
-			if !addedColdPaths[job.HotStoragePath] {
-				dirs = append(dirs, struct{ Path, Type, Tier string }{job.HotStoragePath, "SYSTEM", "HOT"})
-				dirs = append(dirs, struct{ Path, Type, Tier string }{filepath.Join(job.HotStoragePath, "docker-volume"), "DOCKER", "HOT"})
-				addedColdPaths[job.HotStoragePath] = true
-			}
+		// Hot paths
+		hotPathStr := job.HotStoragePath
+		if hotPathStr != "" && !addedPaths[hotPathStr] {
+			dirs = append(dirs, struct{ Path, Type, Tier string }{hotPathStr, "SYSTEM", "HOT"})
+			dirs = append(dirs, struct{ Path, Type, Tier string }{filepath.Join(hotPathStr, "docker-volume"), "DOCKER", "HOT"})
+			addedPaths[hotPathStr] = true
 		}
-		if job.ColdStorage.Path != "" {
-			if !addedColdPaths[job.ColdStorage.Path] {
-				dirs = append(dirs, struct{ Path, Type, Tier string }{job.ColdStorage.Path, "SYSTEM", "COLD"})
-				dirs = append(dirs, struct{ Path, Type, Tier string }{filepath.Join(job.ColdStorage.Path, "docker-volume"), "DOCKER", "COLD"})
-				addedColdPaths[job.ColdStorage.Path] = true
-			}
+
+		// Cold paths
+		coldPathStr := job.ColdStorage.Path
+		if coldPathStr == "" { coldPathStr = s.cfg.ColdStoragePath }
+		if coldPathStr != "" && !addedPaths[coldPathStr] {
+			dirs = append(dirs, struct{ Path, Type, Tier string }{coldPathStr, "SYSTEM", "COLD"})
+			dirs = append(dirs, struct{ Path, Type, Tier string }{filepath.Join(coldPathStr, "docker-volume"), "DOCKER", "COLD"})
+			addedPaths[coldPathStr] = true
 		}
 	}
 	for _, d := range dirs {
