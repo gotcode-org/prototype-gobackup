@@ -129,27 +129,24 @@ func ClearActive(cfg Config) {
 		warnCount := 0
 		failCount := 0
 		
-		desc := "<h3>Batch Execution Summary</h3>"
-		desc += "<table style='width:100%; border-collapse: collapse;' border='1'>"
-		desc += "<tr><th>Server/Job</th><th>Status</th><th>Details</th></tr>"
+		desc := "**Batch Execution Summary:**\n"
 		
 		color := 0x00FF00 // Default to green
 		
 		for _, res := range BatchResults {
 			if res.Status == "SUCCESS" {
 				successCount++
-				desc += fmt.Sprintf("<tr><td>%s/%s</td><td style='color:green;'>SUCCESS</td><td>%s</td></tr>", res.Server, res.Job, res.Duration)
+				desc += fmt.Sprintf("✅ **%s/%s** - %s\n", res.Server, res.Job, res.Duration)
 			} else if res.Status == "WARNING" {
 				warnCount++
 				color = 0xF1C40F // Yellow
-				desc += fmt.Sprintf("<tr><td>%s/%s</td><td style='color:orange;'>WARNING</td><td>%s</td></tr>", res.Server, res.Job, res.Error)
+				desc += fmt.Sprintf("⚠️ **%s/%s** - %s\n", res.Server, res.Job, res.Error)
 			} else {
 				failCount++
 				color = 0xFF0000 // Red
-				desc += fmt.Sprintf("<tr><td>%s/%s</td><td style='color:red;'>FAILED</td><td>%s</td></tr>", res.Server, res.Job, res.Error)
+				desc += fmt.Sprintf("❌ **%s/%s** - %s\n", res.Server, res.Job, res.Error)
 			}
 		}
-		desc += "</table>"
 		
 		title := fmt.Sprintf("✅ Backup Digest: %d Succ, %d Warn, %d Fail", successCount, warnCount, failCount)
 		if failCount > 0 {
