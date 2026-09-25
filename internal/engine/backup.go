@@ -404,10 +404,7 @@ func executeBackupCommand(cfg Config, job JobConfig, srv ServerConfig, ui tui.Ba
 	}
 
 	if exitCode != 0 && exitCode != 1 {
-		SendNotification(cfg.Notifications,
-			fmt.Sprintf("❌ %s Backup Failed! (%s/%s)", backupType, job.Server, job.Name),
-			fmt.Sprintf("Backup fatally failed after %s (Exit Code: %d).\\n\\n**Error Details:**\\n```text\\n%v\\n```", duration, exitCode, err),
-			15158332, job.Server, targetFile, ui)
+		pushJobResult(job.Server, job.Name, "FAILED", fmt.Sprintf("Exit Code: %d", exitCode), duration.String())
 
 		ui.Summary("   ❌ %s Backup fatally failed for %s/%s (Exit Code %d): %v", backupType, job.Server, job.Name, exitCode, err)
 		os.Remove(targetFile) 
