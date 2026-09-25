@@ -38,7 +38,7 @@
 ## 4. CLI / API Integration
 * Expand the `gbctl` admin tools or configuration loader to safely parse, validate, and test these multi-channel configurations.
 
-# Phase 5: Cold Storage Archiving
+~~# Phase 5: Cold Storage Archiving~~
 
 ## 1. Multi-Tier Retention Configuration
 * Update `JobConfig` to support an optional cold storage tier:
