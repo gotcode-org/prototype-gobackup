@@ -653,9 +653,15 @@ func getDiskInfo(path string) (total, free, used int64) {
 	if err := syscall.Statfs(path, &stat); err != nil {
 		return 0, 0, 0
 	}
+	// Blocks * Bsize = Total size
 	total = int64(stat.Blocks) * int64(stat.Bsize)
-	free = int64(stat.Bavail) * int64(stat.Bsize)
+	
+	// Bfree = Free blocks (Bavail is unprivileged free blocks, which drops the 5% root reserve)
+	free = int64(stat.Bfree) * int64(stat.Bsize)
+	
+	// Used = Total - Free
 	used = total - free
+	
 	return total, free, used
 }
 
