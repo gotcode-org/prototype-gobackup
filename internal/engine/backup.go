@@ -103,9 +103,14 @@ func EnqueueJob(host string, cfg Config) {
 			}
 			StateMutex.Unlock()
 
-			desc := "The following jobs have been queued for execution:\n"
+			desc := "**The following jobs have been queued for execution:**\n"
 			for _, j := range jobsList {
-				desc += "- " + j + "\n"
+				display := strings.Replace(j, "_", "/", 1)
+				if strings.Contains(j, "(Running)") {
+					desc += "🔥 **" + display + "**\n"
+				} else {
+					desc += "⏳ **" + display + "**\n"
+				}
 			}
 			
 			SendNotification(c.Notifications, "🚀 Backup Queue Started", desc, 0x3498DB, "Multiple Targets", fmt.Sprintf("%d jobs in queue", len(jobsList)), nil)
