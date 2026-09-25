@@ -97,7 +97,7 @@ var statusCmd = &cobra.Command{
 		
 		fmt.Println("\n💾 Backup Storage Statistics:")
 		fmt.Println("-----------------------------------------------------")
-		fmt.Printf("Total Archives: %d\n\n", resp.TotalBackups)
+		fmt.Printf("Total Archives: %d (Hot: %d | Cold: %d)\n\n", resp.TotalBackups, resp.TotalHotBackups, resp.TotalColdBackups)
 		
 		wStat := tabwriter.NewWriter(os.Stdout, 0, 8, 4, ' ', 0)
 		fmt.Fprintln(wStat, "TIER\tPATH\tARCHIVES\tUSED\tTOTAL\tFREE %")

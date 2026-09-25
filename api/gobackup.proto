@@ -139,6 +139,8 @@ message StatusResponse {
     int64 disk_free = 7;
     int32 total_backups = 8;
     repeated StorageStat storage_stats = 9;
+    int32 total_hot_backups = 10;
+    int32 total_cold_backups = 11;
 }
 
 message RemoveBackupRequest {
