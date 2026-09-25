@@ -109,8 +109,6 @@ func LoadConfig(basePath string) Config {
 							if err == nil {
 								var job JobConfig
 									if yaml.Unmarshal(data, &job) == nil {
-										if job.HotStoragePath == "" { job.HotStoragePath = cfg.BackupDir }
-										if job.ColdStorage.Path == "" && cfg.ColdStoragePath != "" { job.ColdStorage.Path = cfg.ColdStoragePath }
 									cfg.Jobs = append(cfg.Jobs, job)
 								}
 							}

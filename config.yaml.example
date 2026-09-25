@@ -18,3 +18,7 @@ tls_key: "/etc/gobackup/server.key"
 
 # Optional Discord Webhook for notifications (leave blank to disable)
 webhook_url: "https://discord.com/api/webhooks/..."
+
+# The global physical destination where expired backup chains are moved
+# This can be overridden on a per-job basis
+cold_storage_path: "/mnt/nfs/archives"

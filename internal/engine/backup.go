@@ -208,7 +208,7 @@ func RunBackups(cfg Config, ui tui.BackupUI) {
 		EnqueueJob(job.Server + "_" + job.Name, cfg)
 		go RunSingleBackup(cfg, job, ui)
 	}
-	CleanupOldBackups(cfg.BackupDir, cfg.Jobs, ui)
+	CleanupOldBackups(cfg, cfg.BackupDir, cfg.Jobs, ui)
 }
 
 
@@ -424,7 +424,7 @@ func RunSingleBackup(cfg Config, job JobConfig, ui tui.BackupUI) {
 	}
 	
 	// Prune just this host after it finishes
-	CleanupOldBackups(hotPath, []JobConfig{job}, ui)
+	CleanupOldBackups(cfg, hotPath, []JobConfig{job}, ui)
 }
 
 func executeBackupCommand(cfg Config, job JobConfig, srv ServerConfig, ui tui.BackupUI, cmd *exec.Cmd, targetFile string, backupType string) {
@@ -494,7 +494,7 @@ func moveFileAcrossPartitions(src, dst string) error {
 	return os.Remove(src)
 }
 
-func CleanupOldBackups(dir string, jobs []JobConfig, ui tui.BackupUI) {
+func CleanupOldBackups(cfg Config, dir string, jobs []JobConfig, ui tui.BackupUI) {
 	if err := verifyNFSMount(dir); err != nil {
 		ui.Log("❌ Prune Failed: %v", err)
 		return
@@ -568,11 +568,13 @@ func CleanupOldBackups(dir string, jobs []JobConfig, ui tui.BackupUI) {
 							oldPath := filepath.Join(cleanDir, oldBackup.Name())
 							
 							// Check if Cold Storage is configured
-							if job.ColdStorage.Path != "" {
-								coldDir := job.ColdStorage.Path
+							coldPathStr := job.ColdStorage.Path
+							if coldPathStr == "" { coldPathStr = cfg.ColdStoragePath }
+							if coldPathStr != "" && job.ColdStorage.RetentionCount > 0 {
+								coldDir := coldPathStr
 								// If it's a docker volume backup, it goes into the docker-volume subfolder
 								if strings.Contains(cleanDir, "docker-volume") {
-									coldDir = filepath.Join(job.ColdStorage.Path, "docker-volume")
+									coldDir = filepath.Join(coldPathStr, "docker-volume")
 								}
 								os.MkdirAll(coldDir, 0755)
 								newPath := filepath.Join(coldDir, oldBackup.Name())
@@ -595,18 +597,20 @@ func CleanupOldBackups(dir string, jobs []JobConfig, ui tui.BackupUI) {
 		}
 	}
 	
-	CleanupColdStorage(jobs, ui)
+	CleanupColdStorage(cfg, jobs, ui)
 }
 
-func CleanupColdStorage(jobs []JobConfig, ui tui.BackupUI) {
+func CleanupColdStorage(cfg Config, jobs []JobConfig, ui tui.BackupUI) {
 	for _, job := range jobs {
-		if job.ColdStorage.Path == "" || job.ColdStorage.RetentionCount <= 0 { continue }
-		if err := verifyNFSMount(job.ColdStorage.Path); err != nil {
+		coldPathStr := job.ColdStorage.Path
+		if coldPathStr == "" { coldPathStr = cfg.ColdStoragePath }
+		if coldPathStr == "" || job.ColdStorage.RetentionCount <= 0 { continue }
+		if err := verifyNFSMount(coldPathStr); err != nil {
 			ui.Log("❌ Cold Prune Failed for %s: %v", job.Name, err)
 			continue
 		}
 		
-		dirsToClean := []string{job.ColdStorage.Path, filepath.Join(job.ColdStorage.Path, "docker-volume")}
+		dirsToClean := []string{coldPathStr, filepath.Join(coldPathStr, "docker-volume")}
 		for _, cleanDir := range dirsToClean {
 			files, err := os.ReadDir(cleanDir)
 			if err != nil { continue }

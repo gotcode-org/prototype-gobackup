@@ -82,7 +82,13 @@ var jobListCmd = &cobra.Command{
 			intervalStr := "-"
 			if j.Incremental { intervalStr = fmt.Sprintf("%d days", j.FullInterval) }
 			coldPathStr := j.ColdStoragePath
-		if coldPathStr == "" { coldPathStr = "-" }
+		if coldPathStr == "" { 
+			if j.ColdStorageRetention > 0 {
+				coldPathStr = "Global Default"
+			} else {
+				coldPathStr = "-"
+			}
+		}
 		hotPathStr := j.HotStoragePath
 		if hotPathStr == "" { hotPathStr = "Global Default" }
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%d chains\t%s\t%d chains\n", j.Server, j.Name, j.Schedule, incStr, intervalStr, hotPathStr, j.RetentionCount, coldPathStr, j.ColdStorageRetention)
