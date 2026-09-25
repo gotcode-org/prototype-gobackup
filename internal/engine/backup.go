@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -473,6 +474,24 @@ func executeBackupCommand(cfg Config, job JobConfig, srv ServerConfig, ui tui.Ba
 	}
 }
 
+func moveFileAcrossPartitions(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil { return err }
+	
+	out, err := os.Create(dst)
+	if err != nil {
+		in.Close()
+		return err
+	}
+	
+	_, err = io.Copy(out, in)
+	in.Close()
+	out.Close()
+	
+	if err != nil { return err }
+	return os.Remove(src)
+}
+
 func CleanupOldBackups(dir string, jobs []JobConfig, ui tui.BackupUI) {
 	if err := verifyNFSMount(dir); err != nil {
 		ui.Log("❌ Prune Failed: %v", err)
@@ -557,7 +576,7 @@ func CleanupOldBackups(dir string, jobs []JobConfig, ui tui.BackupUI) {
 								newPath := filepath.Join(coldDir, oldBackup.Name())
 								
 								// Move file instead of deleting
-								err := os.Rename(oldPath, newPath)
+								err := moveFileAcrossPartitions(oldPath, newPath)
 								if err != nil {
 									ui.Summary("   ❌ Failed to move %s to cold storage: %v", oldBackup.Name(), err)
 								} else {
