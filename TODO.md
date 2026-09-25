@@ -70,7 +70,7 @@
 * The standard chronological tar stream (FULL + INCs) will be piped directly over SSH into the ephemeral container's `tar -xzf - -C /dest` extraction pipeline.
 * This ensures all ownership (`root:root`, etc.) and permissions are perfectly restored inside the Docker daemon's managed `/var/lib/docker/volumes` namespace without requiring `sudo` privileges on the host filesystem.
 
-# Phase 7: CLI Dashboard Formatting & Polish
+~~# Phase 7: CLI Dashboard Formatting & Polish~~
 
 ## 1. gbctl status Queued Jobs Refactor
 * Right now, `gbctl status` dumps all dynamically queued jobs into a comma-separated string `⏳ Queued Jobs (14): a, b, c...` which causes ugly terminal line-wrapping when many jobs are stacked.
@@ -82,7 +82,7 @@
 * `gbctl status` currently hardcodes a limit of 15 scheduled jobs before truncating the output (`... and X more`).
 * Add a `--all` or `--limit` flag to `gbctl status` so the user can easily print the entire cron-ordered schedule regardless of how massive the fleet is.
 
-# Phase 8: Storage Resilience & Mount Verification
+~~# Phase 8: Storage Resilience & Mount Verification~~
 
 ## 1. Sentinel File Verification
 * Prevent the daemon from accidentally filling up the local root filesystem (`/`) if a Network File System (NFS) drops.
