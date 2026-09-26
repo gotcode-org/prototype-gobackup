@@ -103,10 +103,8 @@ var backupInfoCmd = &cobra.Command{
 			return
 		}
 		
-		parts := strings.Split(args[0], "_FULL_")
-		targetPrefix := parts[0] + "_"
-		
-		req := &pb.ListBackupsRequest{Target: targetPrefix}
+		parts := strings.Split(args[0], "_")
+		req := &pb.ListBackupsRequest{Target: parts[0]}
 		cfg := LoadClientConfig()
 		opts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})), grpc.WithPerRPCCredentials(tokenAuth{token: cfg.Token})}
 		conn, err := grpc.Dial(cfg.ServerAddress, opts...)
