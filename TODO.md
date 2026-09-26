@@ -9,5 +9,5 @@
 
 ## Phase 2: Archive Integrity & Auditing
 - [ ] **Cryptographic Hash Tracking**: Automatically compute a SHA-256 checksum immediately after a `.tar.gz` archive is finalized.
-  - Store the checksum in a sidecar `.sha256` file or directly inside the embedded SQLite database.
+  - Store the checksum persistently in a GitOps-friendly YAML registry under `/etc/gobackup/conf.d` (so changes can be audited in Git) and cache it in the embedded SQLite DB for lightning-fast reads.
   - Integrate a validation sweep into the `CleanupOldBackups` and `CleanupColdStorage` engines to passively detect bit-rot or unauthorized modifications to archival chains before they are relied upon for restorations.
