@@ -93,6 +93,84 @@ var backupListCmd = &cobra.Command{
 	},
 }
 
+var backupInfoCmd = &cobra.Command{
+	Use:   "info [exact_full_backup_filename]",
+	Short: "Display deep-dive information for a specific backup chain",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		if !strings.HasSuffix(args[0], ".tar.gz") || !strings.Contains(args[0], "_FULL_") {
+			fmt.Println("❌ Error: Must specify the exact FULL anchor filename (e.g. server_job_FULL_20260925.tar.gz)")
+			return
+		}
+		
+		parts := strings.Split(args[0], "_FULL_")
+		targetPrefix := parts[0] + "_"
+		
+		req := &pb.ListBackupsRequest{Target: targetPrefix}
+		cfg := LoadClientConfig()
+		opts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})), grpc.WithPerRPCCredentials(tokenAuth{token: cfg.Token})}
+		conn, err := grpc.Dial(cfg.ServerAddress, opts...)
+		if err != nil { log.Fatalf("❌ Failed to connect: %v", err) }
+		defer conn.Close()
+		client := pb.NewBackupServiceClient(conn)
+		resp, err := client.ListBackups(context.Background(), req)
+		if err != nil { log.Fatalf("❌ RPC Error: %v", err) }
+		
+		var chainFiltered []*pb.BackupArchive
+		inChain := false
+		for _, a := range resp.Archives {
+			if a.Filename == args[0] {
+				inChain = true
+				chainFiltered = append(chainFiltered, a)
+				continue
+			}
+			if inChain {
+				if a.ArchiveType == "FULL" { break }
+				chainFiltered = append(chainFiltered, a)
+			}
+		}
+		
+		if len(chainFiltered) == 0 {
+			fmt.Printf("❌ Error: Archive %s not found on any storage tier.\n", args[0])
+			return
+		}
+		
+		var totalSize int64 = 0
+		var incCount int = 0
+		
+		for _, a := range chainFiltered {
+			totalSize += a.Size
+			if a.ArchiveType == "INC" {
+				incCount++
+			}
+		}
+		
+		root := chainFiltered[0]
+		
+		fmt.Println("=====================================================================")
+		fmt.Printf(" 📦 Archive Chain: %s\n", root.Filename)
+		fmt.Println("=====================================================================")
+		fmt.Printf(" Server:        %s\n", root.Server)
+		fmt.Printf(" Job:           %s\n", root.Job)
+		fmt.Printf(" Storage Tier:  %s\n", root.Tier)
+		fmt.Printf(" Chain Type:    %s\n", root.Type)
+		fmt.Printf(" Total Size:    %s\n", formatSize(totalSize))
+		fmt.Printf(" Increments:    %d\n", incCount)
+		fmt.Println("=====================================================================")
+		fmt.Println(" 🔗 Chain Hierarchy:")
+		fmt.Println()
+		
+		for _, a := range chainFiltered {
+			if a.ArchiveType == "FULL" {
+				fmt.Printf("   [FULL] %s (%s)\n", a.Filename, formatSize(a.Size))
+			} else {
+				fmt.Printf("     └- [INC] %s (%s)\n", a.Filename, formatSize(a.Size))
+			}
+		}
+		fmt.Println()
+	},
+}
+
 var backupRmCmd = &cobra.Command{
 	Use:   "rm [filename]",
 	Short: "Remove a backup archive",
