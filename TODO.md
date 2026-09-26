@@ -6,3 +6,8 @@
   - Traverse the filesystem to map the selected archive to its chronological chain.
   - Display the root `[FULL]` anchor and every associated `[INC]` diff attached to it.
   - Display total chain disk footprint, storage tier location (Hot/Cold), and physical paths.
+
+## Phase 2: Archive Integrity & Auditing
+- [ ] **Cryptographic Hash Tracking**: Automatically compute a SHA-256 checksum immediately after a `.tar.gz` archive is finalized.
+  - Store the checksum in a sidecar `.sha256` file or directly inside the embedded SQLite database.
+  - Integrate a validation sweep into the `CleanupOldBackups` and `CleanupColdStorage` engines to passively detect bit-rot or unauthorized modifications to archival chains before they are relied upon for restorations.
