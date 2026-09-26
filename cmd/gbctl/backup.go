@@ -226,7 +226,7 @@ func init() {
 	backupListCmd.Flags().BoolVar(&filterSystem, "system", false, "Filter to show only SYSTEM backups")
 	backupListCmd.Flags().BoolVar(&filterDocker, "docker", false, "Filter to show only DOCKER backups")
 	
-	backupCmd.AddCommand(backupListCmd, backupRmCmd, backupRestoreCmd)
+	backupCmd.AddCommand(backupListCmd, backupRmCmd, backupRestoreCmd, backupInfoCmd)
 	backupRestoreCmd.Flags().StringVar(&targetPath, "target-path", "/home/backup/RESTORE", "Target directory to restore the backup into")
 	backupRestoreCmd.Flags().StringVar(&targetVol, "target-vol", "", "Target Docker volume to natively restore the archive into (overrides --target-path)")
 	backupRestoreCmd.Flags().StringVar(&restoreDockerDest, "docker-dest", "", "Target Docker volume to natively restore the archive into (overrides --dest)")
