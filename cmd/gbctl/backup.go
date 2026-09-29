@@ -183,6 +183,26 @@ var backupInfoCmd = &cobra.Command{
 	},
 }
 
+
+var backupValidateCmd = &cobra.Command{
+	Use:   "validate",
+	Short: "Manually trigger a cryptographic sweep to validate all archive hashes",
+	Run: func(cmd *cobra.Command, args []string) {
+		cfg := LoadClientConfig()
+		opts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})), grpc.WithPerRPCCredentials(tokenAuth{token: cfg.Token})}
+		conn, err := grpc.Dial(cfg.ServerAddress, opts...)
+		if err != nil { log.Fatalf("❌ Failed to connect: %v", err) }
+		defer conn.Close()
+		client := pb.NewBackupServiceClient(conn)
+		
+		fmt.Println("🔍 Initiating cryptographic validation sweep on daemon...")
+		resp, err := client.ValidateHashes(context.Background(), &pb.ValidateRequest{})
+		if err != nil { log.Fatalf("❌ RPC Error: %v", err) }
+		
+		fmt.Printf("✅ Sweep complete! Valid: %d | ❌ Compromised: %d\n", resp.Valid, resp.Compromised)
+	},
+}
+
 var backupRmCmd = &cobra.Command{
 	Use:   "rm [filename]",
 	Short: "Remove a backup archive",
@@ -238,7 +258,7 @@ func init() {
 	backupListCmd.Flags().BoolVar(&filterSystem, "system", false, "Filter to show only SYSTEM backups")
 	backupListCmd.Flags().BoolVar(&filterDocker, "docker", false, "Filter to show only DOCKER backups")
 	
-	backupCmd.AddCommand(backupListCmd, backupRmCmd, backupRestoreCmd, backupInfoCmd)
+	backupCmd.AddCommand(backupListCmd, backupRmCmd, backupRestoreCmd, backupInfoCmd, backupValidateCmd)
 	backupRestoreCmd.Flags().StringVar(&targetPath, "target-path", "/home/backup/RESTORE", "Target directory to restore the backup into")
 	backupRestoreCmd.Flags().StringVar(&targetVol, "target-vol", "", "Target Docker volume to natively restore the archive into (overrides --target-path)")
 	backupRestoreCmd.Flags().StringVar(&restoreDockerDest, "docker-dest", "", "Target Docker volume to natively restore the archive into (overrides --dest)")

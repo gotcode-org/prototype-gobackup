@@ -8,6 +8,7 @@ option go_package = "gobackup/internal/grpc/pb";
 service BackupService {
     // Triggers a backup for a specific host or group
     rpc StartBackup (BackupRequest) returns (BackupResponse);
+    rpc ValidateHashes (ValidateRequest) returns (ValidateResponse);
 
     // Streams real-time logs for active backups (TUI integration)
     rpc WatchLogs (WatchRequest) returns (stream LogChunk);
@@ -210,4 +211,10 @@ message RemoveServerRequest {
 message RemoveJobRequest {
     string name = 1;
     string server = 2;
+}
+
+message ValidateRequest {}
+message ValidateResponse {
+  int32 compromised = 1;
+  int32 valid = 2;
 }

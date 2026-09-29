@@ -19,13 +19,14 @@ import (
 const _ = grpc.SupportPackageIsVersion8
 
 const (
-	BackupService_StartBackup_FullMethodName  = "/gobackup.BackupService/StartBackup"
-	BackupService_WatchLogs_FullMethodName    = "/gobackup.BackupService/WatchLogs"
-	BackupService_ListServers_FullMethodName  = "/gobackup.BackupService/ListServers"
-	BackupService_ListJobs_FullMethodName     = "/gobackup.BackupService/ListJobs"
-	BackupService_ListBackups_FullMethodName  = "/gobackup.BackupService/ListBackups"
-	BackupService_GetStatus_FullMethodName    = "/gobackup.BackupService/GetStatus"
-	BackupService_PruneBackups_FullMethodName = "/gobackup.BackupService/PruneBackups"
+	BackupService_StartBackup_FullMethodName    = "/gobackup.BackupService/StartBackup"
+	BackupService_ValidateHashes_FullMethodName = "/gobackup.BackupService/ValidateHashes"
+	BackupService_WatchLogs_FullMethodName      = "/gobackup.BackupService/WatchLogs"
+	BackupService_ListServers_FullMethodName    = "/gobackup.BackupService/ListServers"
+	BackupService_ListJobs_FullMethodName       = "/gobackup.BackupService/ListJobs"
+	BackupService_ListBackups_FullMethodName    = "/gobackup.BackupService/ListBackups"
+	BackupService_GetStatus_FullMethodName      = "/gobackup.BackupService/GetStatus"
+	BackupService_PruneBackups_FullMethodName   = "/gobackup.BackupService/PruneBackups"
 )
 
 // BackupServiceClient is the client API for BackupService service.
@@ -34,6 +35,7 @@ const (
 type BackupServiceClient interface {
 	// Triggers a backup for a specific host or group
 	StartBackup(ctx context.Context, in *BackupRequest, opts ...grpc.CallOption) (*BackupResponse, error)
+	ValidateHashes(ctx context.Context, in *ValidateRequest, opts ...grpc.CallOption) (*ValidateResponse, error)
 	// Streams real-time logs for active backups (TUI integration)
 	WatchLogs(ctx context.Context, in *WatchRequest, opts ...grpc.CallOption) (BackupService_WatchLogsClient, error)
 	// List all configured hosts
@@ -57,6 +59,16 @@ func (c *backupServiceClient) StartBackup(ctx context.Context, in *BackupRequest
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(BackupResponse)
 	err := c.cc.Invoke(ctx, BackupService_StartBackup_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *backupServiceClient) ValidateHashes(ctx context.Context, in *ValidateRequest, opts ...grpc.CallOption) (*ValidateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ValidateResponse)
+	err := c.cc.Invoke(ctx, BackupService_ValidateHashes_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -152,6 +164,7 @@ func (c *backupServiceClient) PruneBackups(ctx context.Context, in *PruneRequest
 type BackupServiceServer interface {
 	// Triggers a backup for a specific host or group
 	StartBackup(context.Context, *BackupRequest) (*BackupResponse, error)
+	ValidateHashes(context.Context, *ValidateRequest) (*ValidateResponse, error)
 	// Streams real-time logs for active backups (TUI integration)
 	WatchLogs(*WatchRequest, BackupService_WatchLogsServer) error
 	// List all configured hosts
@@ -170,6 +183,9 @@ type UnimplementedBackupServiceServer struct {
 
 func (UnimplementedBackupServiceServer) StartBackup(context.Context, *BackupRequest) (*BackupResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method StartBackup not implemented")
+}
+func (UnimplementedBackupServiceServer) ValidateHashes(context.Context, *ValidateRequest) (*ValidateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ValidateHashes not implemented")
 }
 func (UnimplementedBackupServiceServer) WatchLogs(*WatchRequest, BackupService_WatchLogsServer) error {
 	return status.Errorf(codes.Unimplemented, "method WatchLogs not implemented")
@@ -216,6 +232,24 @@ func _BackupService_StartBackup_Handler(srv interface{}, ctx context.Context, de
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(BackupServiceServer).StartBackup(ctx, req.(*BackupRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BackupService_ValidateHashes_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ValidateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BackupServiceServer).ValidateHashes(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BackupService_ValidateHashes_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BackupServiceServer).ValidateHashes(ctx, req.(*ValidateRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -341,6 +375,10 @@ var BackupService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "StartBackup",
 			Handler:    _BackupService_StartBackup_Handler,
+		},
+		{
+			MethodName: "ValidateHashes",
+			Handler:    _BackupService_ValidateHashes_Handler,
 		},
 		{
 			MethodName: "ListServers",

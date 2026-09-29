@@ -2,6 +2,8 @@ package engine
 
 import (
 	"os/exec"
+	"crypto/sha256"
+	"io"
 	"strconv"
 
 	"path/filepath"
@@ -760,4 +762,40 @@ func (s *Server) RemoveBackup(ctx context.Context, req *pb.RemoveBackupRequest) 
 		msg = fmt.Sprintf("FULL backup and %d linked incremental(s) removed.", count-1)
 	}
 	return &pb.GenericResponse{Success: true, Message: msg}, nil
+}
+
+
+func (s *Server) ValidateHashes(ctx context.Context, req *pb.ValidateRequest) (*pb.ValidateResponse, error) {
+	hotPath := s.cfg.BackupDir
+	var compromisedCount int32 = 0
+	var validCount int32 = 0
+
+	// Get all files
+	files, err := os.ReadDir(hotPath)
+	if err == nil {
+		for _, f := range files {
+			if !f.IsDir() && strings.HasSuffix(f.Name(), ".tar.gz") {
+				expectedHash, err := s.db.GetHash(f.Name())
+				if err != nil || expectedHash == "" { continue }
+				
+				// Calculate actual hash
+				file, err := os.Open(filepath.Join(hotPath, f.Name()))
+				if err != nil { continue }
+				
+				hasher := sha256.New()
+				io.Copy(hasher, file)
+				file.Close()
+				
+				actualHash := fmt.Sprintf("%x", hasher.Sum(nil))
+				if actualHash != expectedHash {
+					s.db.MarkCompromised(f.Name())
+					compromisedCount++
+				} else {
+					validCount++
+					// If it was compromised but now fixed, we could reset it, but let's just count for now
+				}
+			}
+		}
+	}
+	return &pb.ValidateResponse{Compromised: compromisedCount, Valid: validCount}, nil
 }
