@@ -437,7 +437,38 @@ func executeBackupCommand(cfg Config, job JobConfig, srv ServerConfig, ui tui.Ba
 	
 	hasher := sha256.New()
 	
-	// TODO: Phase 2.2 Blockchain - inject previous hash here before streaming
+	// --- Phase 2.2: Blockchain Chain-of-Custody ---
+	// Find the most recent backup for this exact job within the same directory
+	var previousHash string
+	dir := filepath.Dir(targetFile)
+	files, errRead := os.ReadDir(dir)
+	if errRead == nil {
+		var latestArchive string
+		for _, f := range files {
+			if !f.IsDir() && strings.HasSuffix(f.Name(), ".tar.gz") {
+				// Match server_job_ prefix to ensure we stay strictly within this chain
+				prefix := job.Server + "_" + job.Name + "_"
+				if strings.HasPrefix(f.Name(), prefix) {
+					// Because filenames end in YYYYMMDD_HHMMSS.tar.gz, simple string comparison finds the newest
+					if f.Name() > latestArchive {
+						latestArchive = f.Name()
+					}
+				}
+			}
+		}
+		if latestArchive != "" && latestArchive != filepath.Base(targetFile) {
+			prevHash, errDb := db.GetHash(latestArchive)
+			if errDb == nil && prevHash != "" {
+				previousHash = prevHash
+				ui.Log("   🔗 Blockchain linked to previous archive hash (%s)", latestArchive)
+			}
+		}
+	}
+	
+	// Inject the previous hash into the SHA-256 payload before we stream the tarball
+	if previousHash != "" {
+		hasher.Write([]byte(previousHash))
+	}
 	
 	cmd.Stdout = io.MultiWriter(outFile, hasher)
 	cmd.Stderr = &cmdLogger{ui: ui} 
