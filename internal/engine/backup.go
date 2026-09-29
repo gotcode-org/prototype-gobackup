@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"crypto/sha256"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -433,7 +434,12 @@ func executeBackupCommand(cfg Config, job JobConfig, srv ServerConfig, ui tui.Ba
 		ui.Log("   ❌ Error creating local file: %v", err)
 		return
 	}
-	cmd.Stdout = outFile
+	
+	hasher := sha256.New()
+	
+	// TODO: Phase 2.2 Blockchain - inject previous hash here before streaming
+	
+	cmd.Stdout = io.MultiWriter(outFile, hasher)
 	cmd.Stderr = &cmdLogger{ui: ui} 
 
 	
@@ -444,6 +450,17 @@ func executeBackupCommand(cfg Config, job JobConfig, srv ServerConfig, ui tui.Ba
 	err = cmd.Run()
 	duration := time.Since(startTime).Round(time.Second)
 	outFile.Close()
+
+	// Calculate and persist the final SHA-256 hash
+	if err == nil {
+		finalHash := fmt.Sprintf("%x", hasher.Sum(nil))
+		baseName := filepath.Base(targetFile)
+		if dbErr := db.SaveHash(baseName, finalHash); dbErr != nil {
+			ui.Log("   ⚠️ Warning: Backup succeeded but failed to save hash to registry: %v", dbErr)
+		} else {
+			ui.Log("   🔒 Cryptographic Hash: %s", finalHash)
+		}
+	}
 
 	exitCode := 0
 	if err != nil {
