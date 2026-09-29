@@ -2,6 +2,9 @@ package engine
 
 import (
 	"database/sql"
+	"os"
+	"path/filepath"
+	"io/ioutil"
 	"fmt"
 	"log"
 
@@ -30,6 +33,12 @@ func InitDB(path string) (*DB, error) {
 		username TEXT PRIMARY KEY,
 		token_hash TEXT NOT NULL,
 		role TEXT NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
+	
+	CREATE TABLE IF NOT EXISTS archive_hashes (
+		filename TEXT PRIMARY KEY,
+		hash TEXT NOT NULL,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);`
 	
@@ -76,4 +85,29 @@ func (db *DB) ValidateToken(rawToken string) (*User, error) {
 	}
 	
 	return &user, nil
+}
+
+
+func (db *DB) SaveHash(filename, hash string) error {
+	// 1. Save to SQLite
+	query := "INSERT INTO archive_hashes (filename, hash) VALUES (?, ?) ON CONFLICT(filename) DO UPDATE SET hash=excluded.hash"
+	if _, err := db.conn.Exec(query, filename, hash); err != nil {
+		return err
+	}
+
+	// 2. Save to GitOps yaml
+	hashDir := "/etc/gobackup/conf.d/hashes"
+	os.MkdirAll(hashDir, 0755)
+	
+	yamlPath := filepath.Join(hashDir, filename+".yaml")
+	yamlContent := fmt.Sprintf("filename: %s\nhash: %s\n", filename, hash)
+	
+	return ioutil.WriteFile(yamlPath, []byte(yamlContent), 0644)
+}
+
+func (db *DB) GetHash(filename string) (string, error) {
+	var hash string
+	query := "SELECT hash FROM archive_hashes WHERE filename = ?"
+	err := db.conn.QueryRow(query, filename).Scan(&hash)
+	return hash, err
 }

@@ -30,7 +30,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		// Boot up the native cron scheduler
-		scheduler := engine.NewScheduler(cfg)
+		scheduler := engine.NewScheduler(cfg, db)
 		scheduler.Start()
 		defer scheduler.Stop()
 

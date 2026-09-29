@@ -86,7 +86,7 @@ func (s *Server) StartBackup(ctx context.Context, req *pb.BackupRequest) (*pb.Ba
 		count++
 		go func(j JobConfig) {
 			daemonUI := &DaemonLogger{hostName: j.Server + "@" + j.Name}
-			RunSingleBackup(s.cfg, j, daemonUI)
+			RunSingleBackup(s.cfg, j, daemonUI, s.db)
 		}(job)
 	}
 	if count == 0 { return nil, fmt.Errorf("no matching jobs found") }
@@ -192,7 +192,7 @@ func (s *Server) AddJob(ctx context.Context, req *pb.AddJobRequest) (*pb.Generic
 	
 	if s.scheduler != nil {
 		s.scheduler.Stop()
-		s.scheduler = NewScheduler(s.cfg)
+		s.scheduler = NewScheduler(s.cfg, s.db)
 		s.scheduler.Start()
 	}
 	return &pb.GenericResponse{Success: true, Message: "Job added and scheduler reloaded"}, nil
@@ -692,7 +692,7 @@ func (s *Server) RemoveJob(ctx context.Context, req *pb.RemoveJobRequest) (*pb.G
 	os.Remove(filepath.Join(s.cfg.ConfDir, "jobs", req.Server, req.Name+".yaml"))
 	if s.scheduler != nil {
 		s.scheduler.Stop()
-		s.scheduler = NewScheduler(s.cfg)
+		s.scheduler = NewScheduler(s.cfg, s.db)
 		s.scheduler.Start()
 	}
 	return &pb.GenericResponse{Success: true, Message: "Job removed"}, nil

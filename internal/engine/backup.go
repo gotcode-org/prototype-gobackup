@@ -203,10 +203,10 @@ func ClearActive(cfg Config) {
 	}
 }
 
-func RunBackups(cfg Config, ui tui.BackupUI) {
+func RunBackups(cfg Config, ui tui.BackupUI, db *DB) {
 	for _, job := range cfg.Jobs {
 		EnqueueJob(job.Server + "_" + job.Name, cfg)
-		go RunSingleBackup(cfg, job, ui)
+		go RunSingleBackup(cfg, job, ui, db)
 	}
 	CleanupOldBackups(cfg, cfg.BackupDir, cfg.Jobs, ui)
 }
@@ -266,7 +266,7 @@ func resetSnapshot(srv ServerConfig, job JobConfig, volName string, ui tui.Backu
 	cmd.Run()
 }
 
-func RunSingleBackup(cfg Config, job JobConfig, ui tui.BackupUI) {
+func RunSingleBackup(cfg Config, job JobConfig, ui tui.BackupUI, db *DB) {
 	hotPath := job.HotStoragePath
 	if hotPath == "" { hotPath = cfg.BackupDir }
 	if err := verifyNFSMount(hotPath); err != nil {
@@ -370,7 +370,7 @@ func RunSingleBackup(cfg Config, job JobConfig, ui tui.BackupUI) {
 			cmd = exec.Command("ssh", args...)
 		}
 		
-		executeBackupCommand(cfg, job, srv, ui, cmd, targetFile, "SYSTEM")
+		executeBackupCommand(cfg, job, srv, ui, cmd, targetFile, "SYSTEM", db)
 	}
 
 	// 2. Docker Backups
@@ -420,14 +420,14 @@ func RunSingleBackup(cfg Config, job JobConfig, ui tui.BackupUI) {
 			cmd = exec.Command("ssh", args...)
 		}
 
-		executeBackupCommand(cfg, job, srv, ui, cmd, targetFile, fmt.Sprintf("DOCKER VOLUME (%s)", vol))
+		executeBackupCommand(cfg, job, srv, ui, cmd, targetFile, fmt.Sprintf("DOCKER VOLUME (%s)", vol), db)
 	}
 	
 	// Prune just this host after it finishes
 	CleanupOldBackups(cfg, hotPath, []JobConfig{job}, ui)
 }
 
-func executeBackupCommand(cfg Config, job JobConfig, srv ServerConfig, ui tui.BackupUI, cmd *exec.Cmd, targetFile string, backupType string) {
+func executeBackupCommand(cfg Config, job JobConfig, srv ServerConfig, ui tui.BackupUI, cmd *exec.Cmd, targetFile string, backupType string, db *DB) {
 	outFile, err := os.Create(targetFile)
 	if err != nil {
 		ui.Log("   ❌ Error creating local file: %v", err)

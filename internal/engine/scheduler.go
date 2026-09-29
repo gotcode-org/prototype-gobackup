@@ -11,12 +11,14 @@ import (
 type Scheduler struct {
 	cron *cron.Cron
 	cfg  Config
+	db   *DB
 }
 
-func NewScheduler(cfg Config) *Scheduler {
+func NewScheduler(cfg Config, db *DB) *Scheduler {
 	return &Scheduler{
 		cron: cron.New(),
 		cfg:  cfg,
+		db:   db,
 	}
 }
 
@@ -31,7 +33,7 @@ func (s *Scheduler) Start() {
 		j := job
 		_, err := s.cron.AddFunc(j.Schedule, func() {
 			daemonUI := &DaemonLogger{hostName: j.Server + "@" + j.Name}
-			RunSingleBackup(s.cfg, j, daemonUI)
+			RunSingleBackup(s.cfg, j, daemonUI, s.db)
 		})
 		
 		if err != nil {
