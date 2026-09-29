@@ -106,6 +106,7 @@ message BackupArchive {
     string server = 6;
     string archive_type = 7;
     string tier = 8;
+    bool compromised = 9;
 }
 message ListBackupsResponse {
     repeated BackupArchive archives = 1;

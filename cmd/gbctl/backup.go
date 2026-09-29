@@ -87,7 +87,12 @@ var backupListCmd = &cobra.Command{
 			if a.ArchiveType == "INC" {
 				typeStr = "  └- " + typeStr
 			}
-			fmt.Fprintf(w, "[%s]\t%s\t%s\t%s\t%s\t%s\n", a.Tier, a.Server, a.Job, typeStr, a.Filename, formatSize(a.Size))
+			
+			dispName := a.Filename
+			if a.Compromised {
+				dispName = "❌ [COMPROMISED] " + a.Filename
+			}
+			fmt.Fprintf(w, "[%s]\t%s\t%s\t%s\t%s\t%s\n", a.Tier, a.Server, a.Job, typeStr, dispName, formatSize(a.Size))
 		}
 		w.Flush()
 	},
@@ -160,9 +165,18 @@ var backupInfoCmd = &cobra.Command{
 		
 		for _, a := range chainFiltered {
 			if a.ArchiveType == "FULL" {
-				fmt.Printf("   [FULL] %s (%s)\n", a.Filename, formatSize(a.Size))
+				
+				dispName := a.Filename
+				if a.Compromised {
+					dispName = "❌ [COMPROMISED] " + a.Filename
+				}
+				fmt.Printf("   [FULL] %s (%s)\n", dispName, formatSize(a.Size))
 			} else {
-				fmt.Printf("     └- [INC] %s (%s)\n", a.Filename, formatSize(a.Size))
+				dispName := a.Filename
+				if a.Compromised {
+					dispName = "❌ [COMPROMISED] " + a.Filename
+				}
+				fmt.Printf("     └- [INC] %s (%s)\n", dispName, formatSize(a.Size))
 			}
 		}
 		fmt.Println()

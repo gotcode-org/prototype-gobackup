@@ -39,6 +39,7 @@ func InitDB(path string) (*DB, error) {
 	CREATE TABLE IF NOT EXISTS archive_hashes (
 		filename TEXT PRIMARY KEY,
 		hash TEXT NOT NULL,
+		status TEXT DEFAULT 'VALID',
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);`
 	
@@ -110,4 +111,20 @@ func (db *DB) GetHash(filename string) (string, error) {
 	query := "SELECT hash FROM archive_hashes WHERE filename = ?"
 	err := db.conn.QueryRow(query, filename).Scan(&hash)
 	return hash, err
+}
+
+func (db *DB) IsCompromised(filename string) bool {
+	var status string
+	query := "SELECT status FROM archive_hashes WHERE filename = ?"
+	err := db.conn.QueryRow(query, filename).Scan(&status)
+	if err != nil {
+		return false // Default to false if not found
+	}
+	return status == "COMPROMISED"
+}
+
+func (db *DB) MarkCompromised(filename string) error {
+	query := "UPDATE archive_hashes SET status = 'COMPROMISED' WHERE filename = ?"
+	_, err := db.conn.Exec(query, filename)
+	return err
 }
