@@ -521,6 +521,7 @@ func (s *Server) ListBackups(ctx context.Context, req *pb.ListBackupsRequest) (*
 				Type:        d.Type,
 				ArchiveType: archiveType,
 				Tier:        d.Tier,
+					Compromised: s.db.IsCompromised(f.Name()),
 			})
 
 		}
