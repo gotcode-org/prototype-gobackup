@@ -2,14 +2,26 @@
 
 ## [2.0.0] - 2026-10-02
 ### Added
-- **Storage Tier Statistics**: Implemented dynamic traversal of active global/job-level paths, reporting real-time disk utilization metrics and active/cold counts per tier via a new matrix format in 'gbctl status'.
-- **Archive Introspection API**: Added 'gbctl backup info <anchor_file>' command to instantly map out nested chronological diffs for any given root backup anchor.
-- **Cryptographic Registry**: Automated inline SHA-256 computation over the raw SSH I/O pipe without disk re-reading overhead. Checksums are natively linked to GitOps configurations (/etc/gobackup/conf.d/hashes) and mirrored into embedded SQLite for zero-latency lookups.
-- **Blockchain Chaining Architecture**: 'INC' payloads are cryptographically salted with the hash of their parent archive, turning sequences into Merkle trees to physically prevent tampering or partial chain restoration.
-- **Passive Cryptographic Sweep**: The 'CleanupOldBackups' background daemon actively interrogates cold hashes against raw disk bytes every time it cycles, actively locking down the gRPC 'RestoreBackup' pipe upon integrity failure.
+- **Storage Tier Statistics**: Implemented dynamic traversal of active
+  global/job-level paths, reporting real-time disk utilization metrics and
+  active/cold counts per tier via a new matrix format in 'gbctl status'.
+- **Archive Introspection API**: Added 'gbctl backup info <anchor_file>'
+  command to instantly map out nested chronological diffs for any given root
+  backup anchor.
+- **Cryptographic Registry**: Automated inline SHA-256 computation over the
+  raw SSH I/O pipe without disk re-reading overhead. Checksums are natively
+  linked to GitOps configurations (/etc/gobackup/conf.d/hashes) and mirrored
+  into embedded SQLite for zero-latency lookups.
+- **Blockchain Chaining Architecture**: 'INC' payloads are cryptographically
+  salted with the hash of their parent archive, turning sequences into Merkle
+  trees to physically prevent tampering or partial chain restoration.
+- **Passive Cryptographic Sweep**: The 'CleanupOldBackups' background daemon
+  actively interrogates cold hashes against raw disk bytes every time it
+  cycles, locking down the gRPC 'RestoreBackup' pipe upon integrity failure.
 
 ### Removed
-- Deprecated 'MODIFIED' timestamp display column in 'gbctl backup list', delegating sequence tracking exclusively to archive namespace boundaries.
+- Deprecated 'MODIFIED' timestamp display column in 'gbctl backup list',
+  delegating sequence tracking exclusively to archive namespace boundaries.
 
 All notable changes to the GoBackup project will be documented in this file.
 
