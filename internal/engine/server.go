@@ -235,7 +235,7 @@ func (s *Server) ListJobs(ctx context.Context, req *pb.ListRequest) (*pb.ListJob
 func (s *Server) PruneBackups(ctx context.Context, req *pb.PruneRequest) (*pb.PruneResponse, error) {
 	log.Println("Manual prune requested via gRPC")
 	ui := &DaemonLogger{hostName: "prune"}
-	CleanupOldBackups(s.cfg, s.cfg.BackupDir, s.cfg.Jobs, ui)
+	CleanupOldBackups(s.cfg, s.cfg.BackupDir, s.cfg.Jobs, ui, s.db)
 	return &pb.PruneResponse{
 		Success: true,
 		Message: "Prune complete",

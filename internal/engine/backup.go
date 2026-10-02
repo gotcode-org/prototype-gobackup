@@ -209,7 +209,7 @@ func RunBackups(cfg Config, ui tui.BackupUI, db *DB) {
 		EnqueueJob(job.Server + "_" + job.Name, cfg)
 		go RunSingleBackup(cfg, job, ui, db)
 	}
-	CleanupOldBackups(cfg, cfg.BackupDir, cfg.Jobs, ui)
+	CleanupOldBackups(cfg, cfg.BackupDir, cfg.Jobs, ui, db)
 }
 
 
@@ -425,7 +425,7 @@ func RunSingleBackup(cfg Config, job JobConfig, ui tui.BackupUI, db *DB) {
 	}
 	
 	// Prune just this host after it finishes
-	CleanupOldBackups(cfg, hotPath, []JobConfig{job}, ui)
+	CleanupOldBackups(cfg, hotPath, []JobConfig{job}, ui, db)
 }
 
 func executeBackupCommand(cfg Config, job JobConfig, srv ServerConfig, ui tui.BackupUI, cmd *exec.Cmd, targetFile string, backupType string, db *DB) {
@@ -542,7 +542,7 @@ func moveFileAcrossPartitions(src, dst string) error {
 	return os.Remove(src)
 }
 
-func CleanupOldBackups(cfg Config, dir string, jobs []JobConfig, ui tui.BackupUI) {
+func CleanupOldBackups(cfg Config, dir string, jobs []JobConfig, ui tui.BackupUI, db *DB) {
 	if err := verifyNFSMount(dir); err != nil {
 		ui.Log("❌ Prune Failed: %v", err)
 		return
