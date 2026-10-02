@@ -527,10 +527,33 @@ func (s *Server) ListBackups(ctx context.Context, req *pb.ListBackupsRequest) (*
 		}
 	}
 	
-	// Sort by filename ascending so INC falls chronologically and alphabetically under FULL
-	sort.Slice(resp.Archives, func(i, j int) bool {
-		return resp.Archives[i].Filename < resp.Archives[j].Filename
-	})
+		// Group by chain root timestamp
+		sort.Slice(resp.Archives, func(i, j int) bool {
+			a := resp.Archives[i].Filename
+			b := resp.Archives[j].Filename
+			
+			partsA := strings.Split(a, "_")
+			partsB := strings.Split(b, "_")
+			
+			if len(partsA) < 5 || len(partsB) < 5 { return a < b }
+			
+			typeIdxA, typeIdxB := -1, -1
+			for idx, p := range partsA { if p == "FULL" || p == "INC" { typeIdxA = idx; break } }
+			for idx, p := range partsB { if p == "FULL" || p == "INC" { typeIdxB = idx; break } }
+			
+			if typeIdxA == -1 || typeIdxB == -1 { return a < b }
+			
+			prefixA := strings.Join(partsA[:typeIdxA], "_")
+			prefixB := strings.Join(partsB[:typeIdxB], "_")
+			
+			if prefixA != prefixB { return prefixA < prefixB }
+			
+			timeA := strings.Join(partsA[typeIdxA+1:], "_")
+			timeB := strings.Join(partsB[typeIdxB+1:], "_")
+			
+			if timeA == timeB { return a > b }
+			return timeA < timeB
+		})
 	
 	return &resp, nil
 }
