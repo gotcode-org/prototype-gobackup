@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
@@ -17,6 +18,7 @@ import (
 )
 
 var showAll bool
+var watchStatus bool
 
 var statusCmd = &cobra.Command{
 	Use:   "status",
@@ -38,12 +40,18 @@ var statusCmd = &cobra.Command{
 		defer conn.Close()
 		
 		client := pb.NewBackupServiceClient(conn)
-		resp, err := client.GetStatus(context.Background(), &pb.StatusRequest{})
-		if err != nil {
-			log.Fatalf("❌ RPC Error: %v", err)
-		}
 
-		fmt.Println("\n🟢 Daemon Status: ONLINE")
+		for {
+			resp, err := client.GetStatus(context.Background(), &pb.StatusRequest{})
+			if err != nil {
+				log.Fatalf("❌ RPC Error: %v", err)
+			}
+
+			if watchStatus {
+				fmt.Print("\033[H\033[2J") // Clear screen
+			}
+
+			fmt.Println("\n🟢 Daemon Status: ONLINE")
 		fmt.Println("-----------------------------------------------------")
 		
 		if resp.ActiveJob != "" {
@@ -121,6 +129,12 @@ var statusCmd = &cobra.Command{
 		wStat.Flush()
 		
 		fmt.Println()
+			
+			if !watchStatus {
+				break
+			}
+			time.Sleep(1 * time.Second)
+		}
 	},
 }
 
@@ -140,5 +154,6 @@ func formatSize(bytes int64) string {
 
 func init() {
 	statusCmd.Flags().BoolVarP(&showAll, "all", "a", false, "Show all upcoming jobs instead of truncating")
+	statusCmd.Flags().BoolVarP(&watchStatus, "watch", "w", false, "Watch the status in real-time (updates every second)")
 	rootCmd.AddCommand(statusCmd)
 }
