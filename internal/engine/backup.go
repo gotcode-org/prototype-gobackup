@@ -193,12 +193,16 @@ func DequeueAndSetActive(host string) {
 		}
 	}
 	ActiveJob = host
+	ActiveJobPercent = 0.0
+	ActiveJobStartTime = time.Now()
 }
 
 func ClearActive(cfg Config) {
 	StateMutex.Lock()
 	defer StateMutex.Unlock()
 	ActiveJob = ""
+	ActiveJobPercent = 0.0
+	ActiveJobStartTime = time.Now()
 
 	if IsBatchActive && len(QueuedJobs) == 0 {
 		IsBatchActive = false
@@ -408,7 +412,7 @@ func RunSingleBackup(cfg Config, job JobConfig, ui tui.BackupUI, db *DB) {
 			cmd = exec.Command("ssh", args...)
 		}
 		
-		jobStr := fmt.Sprintf("Backing up %s for: %s/%s (%s)", archiveType, job.Server, job.Name, srv.Address)
+		jobStr := fmt.Sprintf("%s/%s", job.Server, job.Name)
 		
 		ui.Log("   📡 Pre-flight file count...")
 		findCmdStr := "du -scb " + strings.Join(job.Paths, " ") + " | tail -1 | awk '{print $1}'"
@@ -481,7 +485,7 @@ func RunSingleBackup(cfg Config, job JobConfig, ui tui.BackupUI, db *DB) {
 			cmd = exec.Command("ssh", args...)
 		}
 
-		jobStr := fmt.Sprintf("Backing up DOCKER VOLUME (%s) for: %s/%s (%s)", vol, job.Server, job.Name, srv.Address)
+		jobStr := fmt.Sprintf("%s/%s [%s]", job.Server, job.Name, vol)
 		
 		ui.Log("   📡 Pre-flight docker volume file count...")
 		findCmdStr := fmt.Sprintf("docker run --rm -v %s:/volume:ro debian:stable-slim du -sb /volume | awk '{print $1}'", vol)
