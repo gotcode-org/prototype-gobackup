@@ -200,6 +200,9 @@ func ClearActive(cfg Config) {
 			title = fmt.Sprintf("⚠️ Backup Digest: %d Succ, %d Warn, %d Fail", successCount, warnCount, failCount)
 		}
 
+		stats, _, _, _, _, _, _ := GetStorageStats(cfg)
+		desc += FormatStorageStatsMarkdown(stats)
+
 		SendNotification(cfg.Notifications, title, desc, color, "Batch Digest", fmt.Sprintf("Total Duration: %s", time.Since(BatchStartTime).Round(time.Second).String()), nil)
 	}
 }

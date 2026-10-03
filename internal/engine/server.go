@@ -586,78 +586,7 @@ func (s *Server) GetStatus(ctx context.Context, req *pb.StatusRequest) (*pb.Stat
 		return upcoming[i].NextUnix < upcoming[j].NextUnix
 	})
 
-	var stats []*pb.StorageStat
-	
-	// Dynamically build storage paths
-	addedPaths := make(map[string]bool)
-	dirs := []struct{ Path, Tier string }{
-		{s.cfg.BackupDir, "HOT"},
-	}
-	addedPaths[s.cfg.BackupDir] = true
-	
-	if s.cfg.ColdStoragePath != "" {
-		dirs = append(dirs, struct{ Path, Tier string }{s.cfg.ColdStoragePath, "COLD"})
-		addedPaths[s.cfg.ColdStoragePath] = true
-	}
-	
-	for _, job := range s.cfg.Jobs {
-		if job.HotStoragePath != "" && !addedPaths[job.HotStoragePath] {
-			dirs = append(dirs, struct{ Path, Tier string }{job.HotStoragePath, "HOT"})
-			addedPaths[job.HotStoragePath] = true
-		}
-		
-		coldPathStr := job.ColdStorage.Path
-		if coldPathStr == "" { coldPathStr = s.cfg.ColdStoragePath }
-		if coldPathStr != "" && !addedPaths[coldPathStr] {
-			dirs = append(dirs, struct{ Path, Tier string }{coldPathStr, "COLD"})
-			addedPaths[coldPathStr] = true
-		}
-	}
-	
-	var globalTotalDisk, globalFreeDisk, globalUsedDisk int64
-	var globalTotalBackups int32
-	var globalHotBackups int32
-	var globalColdBackups int32
-	
-	for _, d := range dirs {
-		dTotal, dFree, dUsed := getDiskInfo(d.Path)
-		var dBackups int32 = 0
-		if files, err := os.ReadDir(d.Path); err == nil {
-			for _, entry := range files {
-				if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".tar.gz") {
-					dBackups++
-				}
-			}
-		}
-		// Also scan docker-volume subdirectory
-		if files, err := os.ReadDir(filepath.Join(d.Path, "docker-volume")); err == nil {
-			for _, entry := range files {
-				if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".tar.gz") {
-					dBackups++
-				}
-			}
-		}
-		
-		stats = append(stats, &pb.StorageStat{
-			Path: d.Path,
-			Tier: d.Tier,
-			DiskTotal: dTotal,
-			DiskFree: dFree,
-			DiskUsed: dUsed,
-			TotalBackups: dBackups,
-		})
-		
-		// Only aggregate global stats for HOT drives to prevent double-counting massive NAS drives
-		if d.Tier == "HOT" {
-			globalTotalDisk += dTotal
-			globalFreeDisk += dFree
-			globalUsedDisk += dUsed
-			globalHotBackups += dBackups
-		} else if d.Tier == "COLD" {
-			globalColdBackups += dBackups
-		}
-		globalTotalBackups += dBackups
-	}
+	stats, globalTotalDisk, globalFreeDisk, globalUsedDisk, globalTotalBackups, globalHotBackups, globalColdBackups := GetStorageStats(s.cfg)
 
 	return &pb.StatusResponse{
 		Online:       true,
