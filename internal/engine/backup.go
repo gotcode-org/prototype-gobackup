@@ -76,6 +76,7 @@ var (
 	StateMutex sync.Mutex
 	ActiveJob  string
 	ActiveJobPercent float64
+	ActiveJobStartTime time.Time
 	QueuedJobs []string
 )
 
