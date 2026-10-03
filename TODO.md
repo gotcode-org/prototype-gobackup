@@ -7,4 +7,4 @@
 - [ ] **Live Progress Bars & ETA**: Implement a file-count based progress tracker for running backups.
   - Run a pre-flight \`find /paths | wc -l` over SSH to get the total file count.
   - Enable verbose mode (`tar -cvzf`) so the remote server streams processed filenames to `stderr`.
-  - Intercept the `stderr` stream in the daemon, count the lines as files complete, and broadcast a real-time `(processed/total) %` to the TUI.
+  - Intercept the `stderr` stream in the daemon, count the lines as files complete, and broadcast a real-time `(processed/total) %` to both the TUI and the `gbctl status` active job response.
