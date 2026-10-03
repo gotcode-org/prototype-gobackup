@@ -90,14 +90,18 @@ func GetStorageStats(cfg Config) ([]*pb.StorageStat, int64, int64, int64, int32,
 func FormatStorageStatsMarkdown(stats []*pb.StorageStat) string {
 	var sb strings.Builder
 	sb.WriteString("\n\n**Storage Telemetry**\n")
-	sb.WriteString("| Tier | Path | Archives | Used | Total | Free |\n")
-	sb.WriteString("|---|---|---|---|---|---|\n")
+	sb.WriteString("\x60\x60\x60text\n")
+	sb.WriteString(fmt.Sprintf("%-6s | %-20s | %-8s | %-10s | %-10s | %-10s\n", "TIER", "PATH", "ARCHIVES", "USED", "TOTAL", "FREE"))
+	sb.WriteString("--------------------------------------------------------------------------------------\n")
 
 	for _, s := range stats {
-		sb.WriteString(fmt.Sprintf("| %s | %s | %d | %s | %s | %s |\n",
-			s.Tier, s.Path, s.TotalBackups, formatSize(s.DiskUsed), formatSize(s.DiskTotal), formatSize(s.DiskFree)))
+		pathStr := s.Path
+		if len(pathStr) > 20 { pathStr = "..." + pathStr[len(pathStr)-17:] }
+		
+		sb.WriteString(fmt.Sprintf("%-6s | %-20s | %-8d | %-10s | %-10s | %-10s\n",
+			s.Tier, pathStr, s.TotalBackups, formatSize(s.DiskUsed), formatSize(s.DiskTotal), formatSize(s.DiskFree)))
 	}
-
+	sb.WriteString("\x60\x60\x60\n")
 	return sb.String()
 }
 
