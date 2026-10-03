@@ -12,3 +12,7 @@
   - Track `BatchTotal` and `BatchCompleted` integers in the global queue state.
   - Calculate overall progress dynamically: `((Completed * 100) + ActiveJob%) / Total`.
   - Broadcast the output to the TUI and `gbctl status` formatted as: `Batch Progress: 62.5% Complete (2/4 Jobs Finished)`.
+- [ ] **Live CLI Dashboard**: Replace the complex TUI log streaming with a simple `gbctl status --watch` flag.
+  - Implement a 1-second ticker loop in the status command.
+  - Clear the terminal screen on each tick and fetch the latest `GetStatus` RPC payload.
+  - Deprecate and remove the `gbctl daemon attach` command entirely.
