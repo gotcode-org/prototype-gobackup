@@ -419,7 +419,9 @@ func RunSingleBackup(cfg Config, job JobConfig, ui tui.BackupUI, db *DB) {
 			findCmd = exec.Command("ssh", findArgs...)
 		}
 		if out, err := findCmd.Output(); err == nil {
-			fmt.Sscanf(strings.TrimSpace(string(out)), "%d", &totalFiles)
+			lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+			lastLine := strings.TrimSpace(lines[len(lines)-1])
+			fmt.Sscanf(lastLine, "%d", &totalFiles)
 			ui.Log("   ✅ Total raw bytes to process: %d", totalFiles)
 		} else {
 			ui.Log("   ⚠️ Failed to count files: %v", err)
@@ -489,7 +491,9 @@ func RunSingleBackup(cfg Config, job JobConfig, ui tui.BackupUI, db *DB) {
 			findCmd = exec.Command("ssh", findArgs...)
 		}
 		if out, err := findCmd.Output(); err == nil {
-			fmt.Sscanf(strings.TrimSpace(string(out)), "%d", &totalFiles)
+			lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+			lastLine := strings.TrimSpace(lines[len(lines)-1])
+			fmt.Sscanf(lastLine, "%d", &totalFiles)
 			ui.Log("   ✅ Total raw bytes to process: %d", totalFiles)
 		} else {
 			ui.Log("   ⚠️ Failed to count docker files: %v", err)
