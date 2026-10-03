@@ -47,8 +47,8 @@ func (pw *progressWriter) Write(p []byte) (int, error) {
 	n := len(p)
 	pw.processedBytes += int64(n)
 	
-	// Update UI every ~50MB to avoid spamming
-	if pw.processedBytes - pw.lastUpdate > 50*1024*1024 || pw.processedBytes == pw.totalBytes {
+	// Update UI every ~5MB to keep it snappy, and always update on the first chunk
+	if pw.lastUpdate == 0 || pw.processedBytes - pw.lastUpdate > 5*1024*1024 || pw.processedBytes == pw.totalBytes {
 		pw.lastUpdate = pw.processedBytes
 		if pw.totalBytes > 0 {
 			percent := (float64(pw.processedBytes) / float64(pw.totalBytes)) * 100.0
