@@ -58,6 +58,7 @@ func (pw *progressWriter) Write(p []byte) (int, error) {
 			
 			StateMutex.Lock()
 			ActiveJob = statusStr
+			ActiveJobPercent = percent
 			StateMutex.Unlock()
 		}
 	}
@@ -74,6 +75,7 @@ var GlobalBackupQueue sync.Mutex
 var (
 	StateMutex sync.Mutex
 	ActiveJob  string
+	ActiveJobPercent float64
 	QueuedJobs []string
 )
 

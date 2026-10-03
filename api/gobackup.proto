@@ -143,6 +143,7 @@ message StatusResponse {
     repeated StorageStat storage_stats = 9;
     int32 total_hot_backups = 10;
     int32 total_cold_backups = 11;
+    string batch_progress = 12;
 }
 
 message RemoveBackupRequest {

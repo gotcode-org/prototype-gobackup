@@ -54,6 +54,10 @@ var statusCmd = &cobra.Command{
 			fmt.Println("\n🟢 Daemon Status: ONLINE")
 		fmt.Println("-----------------------------------------------------")
 		
+		if resp.BatchProgress != "" {
+			fmt.Printf("📦 %s\n", resp.BatchProgress)
+		}
+
 		if resp.ActiveJob != "" {
 			parts := strings.SplitN(resp.ActiveJob, "_", 2)
 			if len(parts) == 2 {
