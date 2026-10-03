@@ -401,7 +401,7 @@ func RunSingleBackup(cfg Config, job JobConfig, ui tui.BackupUI, db *DB) {
 		jobStr := fmt.Sprintf("Backing up %s for: %s/%s (%s)", archiveType, job.Server, job.Name, srv.Address)
 		
 		ui.Log("   📡 Pre-flight file count...")
-		findCmdStr := "find " + strings.Join(job.Paths, " ") + " -type f | wc -l"
+		findCmdStr := "find " + strings.Join(job.Paths, " ") + " | wc -l"
 		var totalFiles int
 		var findCmd *exec.Cmd
 		if srv.Address == "localhost" || srv.Address == "127.0.0.1" || srv.Address == "local" {
@@ -470,7 +470,7 @@ func RunSingleBackup(cfg Config, job JobConfig, ui tui.BackupUI, db *DB) {
 		jobStr := fmt.Sprintf("Backing up DOCKER VOLUME (%s) for: %s/%s (%s)", vol, job.Server, job.Name, srv.Address)
 		
 		ui.Log("   📡 Pre-flight docker volume file count...")
-		findCmdStr := fmt.Sprintf("docker run --rm -v %s:/volume:ro debian:stable-slim find /volume -type f | wc -l", vol)
+		findCmdStr := fmt.Sprintf("docker run --rm -v %s:/volume:ro debian:stable-slim find /volume | wc -l", vol)
 		var totalFiles int
 		var findCmd *exec.Cmd
 		if srv.Address == "localhost" || srv.Address == "127.0.0.1" || srv.Address == "local" {
