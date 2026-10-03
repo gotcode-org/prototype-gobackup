@@ -57,7 +57,10 @@ func (pw *progressWriter) Write(p []byte) (int, error) {
 			pw.ui.SetStatus(statusStr, true)
 			
 			StateMutex.Lock()
-			ActiveJob = statusStr
+			if ActiveJobStartTime.IsZero() {
+					ActiveJobStartTime = time.Now()
+				}
+				ActiveJob = statusStr
 			ActiveJobPercent = percent
 			StateMutex.Unlock()
 		}
