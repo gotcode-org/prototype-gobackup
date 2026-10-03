@@ -421,6 +421,8 @@ func RunSingleBackup(cfg Config, job JobConfig, ui tui.BackupUI, db *DB) {
 		if out, err := findCmd.Output(); err == nil {
 			lines := strings.Split(strings.TrimSpace(string(out)), "\n")
 			lastLine := strings.TrimSpace(lines[len(lines)-1])
+			ui.Log("   🐛 DEBUG raw out: %q", string(out))
+			ui.Log("   🐛 DEBUG last line: %q", lastLine)
 			fmt.Sscanf(lastLine, "%d", &totalFiles)
 			ui.Log("   ✅ Total raw bytes to process: %d", totalFiles)
 		} else {
