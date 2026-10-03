@@ -21,14 +21,38 @@ import (
 
 type cmdLogger struct {
 	ui tui.BackupUI
+	totalFiles int
+	processedFiles int
+	jobStr string
 }
 
 func (c *cmdLogger) Write(p []byte) (n int, err error) {
 	lines := strings.Split(string(p), "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		if line != "" {
-			c.ui.Log("%s", line)
+		if line == "" { continue }
+		
+		// If the line starts with tar: it's an error
+		if strings.HasPrefix(line, "tar:") || strings.HasPrefix(line, "tar: ") {
+			c.ui.Log("   ⚠️ %s", line)
+			continue
+		}
+		
+		// Otherwise, it's a file processed by tar -cvzf
+		c.processedFiles++
+		if c.totalFiles > 0 {
+			percent := (float64(c.processedFiles) / float64(c.totalFiles)) * 100.0
+			if percent > 100.0 { percent = 100.0 }
+			
+			// Update the UI status with percentage (only update every 100 files to avoid spamming the UI)
+			if c.processedFiles % 100 == 0 || c.processedFiles == c.totalFiles || c.processedFiles == 1 {
+				statusStr := fmt.Sprintf("%s (%.1f%% Complete - %d / %d files)", c.jobStr, percent, c.processedFiles, c.totalFiles)
+				c.ui.SetStatus(statusStr, true)
+				
+				StateMutex.Lock()
+				ActiveJob = statusStr
+				StateMutex.Unlock()
+			}
 		}
 	}
 	return len(p), nil
@@ -374,7 +398,26 @@ func RunSingleBackup(cfg Config, job JobConfig, ui tui.BackupUI, db *DB) {
 			cmd = exec.Command("ssh", args...)
 		}
 		
-		executeBackupCommand(cfg, job, srv, ui, cmd, targetFile, "SYSTEM", db)
+		jobStr := fmt.Sprintf("Backing up %s for: %s/%s (%s)", archiveType, job.Server, job.Name, srv.Address)
+		
+		ui.Log("   📡 Pre-flight file count...")
+		findCmdStr := "find " + strings.Join(job.Paths, " ") + " -type f | wc -l"
+		var totalFiles int
+		var findCmd *exec.Cmd
+		if srv.Address == "localhost" || srv.Address == "127.0.0.1" || srv.Address == "local" {
+			findCmd = exec.Command("sh", "-c", findCmdStr)
+		} else {
+			findArgs := []string{"-p", strconv.Itoa(srv.Port), srv.Address, findCmdStr}
+			findCmd = exec.Command("ssh", findArgs...)
+		}
+		if out, err := findCmd.Output(); err == nil {
+			fmt.Sscanf(strings.TrimSpace(string(out)), "%d", &totalFiles)
+			ui.Log("   ✅ Total files to process: %d", totalFiles)
+		} else {
+			ui.Log("   ⚠️ Failed to count files: %v", err)
+		}
+
+		executeBackupCommand(cfg, job, srv, ui, cmd, targetFile, "SYSTEM", db, totalFiles, jobStr)
 	}
 
 	// 2. Docker Backups
@@ -424,14 +467,34 @@ func RunSingleBackup(cfg Config, job JobConfig, ui tui.BackupUI, db *DB) {
 			cmd = exec.Command("ssh", args...)
 		}
 
-		executeBackupCommand(cfg, job, srv, ui, cmd, targetFile, fmt.Sprintf("DOCKER VOLUME (%s)", vol), db)
+		jobStr := fmt.Sprintf("Backing up DOCKER VOLUME (%s) for: %s/%s (%s)", vol, job.Server, job.Name, srv.Address)
+		
+		ui.Log("   📡 Pre-flight docker volume file count...")
+		findCmdStr := fmt.Sprintf("docker run --rm -v %s:/volume:ro debian:stable-slim find /volume -type f | wc -l", vol)
+		var totalFiles int
+		var findCmd *exec.Cmd
+		if srv.Address == "localhost" || srv.Address == "127.0.0.1" || srv.Address == "local" {
+			findCmd = exec.Command("sh", "-c", findCmdStr)
+		} else {
+			if srv.UseSudo { findCmdStr = "sudo -n " + findCmdStr }
+			findArgs := []string{"-p", strconv.Itoa(srv.Port), srv.Address, findCmdStr}
+			findCmd = exec.Command("ssh", findArgs...)
+		}
+		if out, err := findCmd.Output(); err == nil {
+			fmt.Sscanf(strings.TrimSpace(string(out)), "%d", &totalFiles)
+			ui.Log("   ✅ Total files to process: %d", totalFiles)
+		} else {
+			ui.Log("   ⚠️ Failed to count docker files: %v", err)
+		}
+		
+		executeBackupCommand(cfg, job, srv, ui, cmd, targetFile, fmt.Sprintf("DOCKER VOLUME (%s)", vol), db, totalFiles, jobStr)
 	}
 	
 	// Prune just this host after it finishes
 	CleanupOldBackups(cfg, hotPath, []JobConfig{job}, ui, db)
 }
 
-func executeBackupCommand(cfg Config, job JobConfig, srv ServerConfig, ui tui.BackupUI, cmd *exec.Cmd, targetFile string, backupType string, db *DB) {
+func executeBackupCommand(cfg Config, job JobConfig, srv ServerConfig, ui tui.BackupUI, cmd *exec.Cmd, targetFile string, backupType string, db *DB, totalFiles int, jobStr string) {
 	outFile, err := os.Create(targetFile)
 	if err != nil {
 		ui.Log("   ❌ Error creating local file: %v", err)
@@ -474,7 +537,7 @@ func executeBackupCommand(cfg Config, job JobConfig, srv ServerConfig, ui tui.Ba
 	}
 	
 	cmd.Stdout = io.MultiWriter(outFile, hasher)
-	cmd.Stderr = &cmdLogger{ui: ui} 
+	cmd.Stderr = &cmdLogger{ui: ui, totalFiles: totalFiles, jobStr: jobStr}
 
 	
 	startTime := time.Now()
