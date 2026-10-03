@@ -414,6 +414,7 @@ func RunSingleBackup(cfg Config, job JobConfig, ui tui.BackupUI, db *DB) {
 		if srv.Address == "localhost" || srv.Address == "127.0.0.1" || srv.Address == "local" {
 			findCmd = exec.Command("sh", "-c", findCmdStr)
 		} else {
+			if srv.UseSudo { findCmdStr = "sudo -n " + findCmdStr }
 			findArgs := []string{"-p", strconv.Itoa(srv.Port), srv.Address, findCmdStr}
 			findCmd = exec.Command("ssh", findArgs...)
 		}
