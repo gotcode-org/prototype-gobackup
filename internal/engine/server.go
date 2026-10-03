@@ -588,9 +588,26 @@ func (s *Server) GetStatus(ctx context.Context, req *pb.StatusRequest) (*pb.Stat
 
 	stats, globalTotalDisk, globalFreeDisk, globalUsedDisk, globalTotalBackups, globalHotBackups, globalColdBackups := GetStorageStats(s.cfg)
 
+	batchProgressStr := ""
+	activeJobStr := ActiveJob
+	
+	if IsBatchActive && len(BatchEnqueuedJobs) > 0 {
+		total := len(BatchEnqueuedJobs)
+		completed := len(BatchResults)
+		pct := (float64(completed*100) + ActiveJobPercent) / float64(total)
+		elapsed := time.Since(BatchStartTime).Round(time.Second)
+		batchProgressStr = fmt.Sprintf("Batch Progress: %.1f%% Complete (%d/%d Jobs Finished) [Elapsed: %s]", pct, completed, total, elapsed)
+	}
+
+	if ActiveJob != "" && !ActiveJobStartTime.IsZero() {
+		elapsed := time.Since(ActiveJobStartTime).Round(time.Second)
+		activeJobStr = fmt.Sprintf("%s [Elapsed: %s]", ActiveJob, elapsed)
+	}
+
 	return &pb.StatusResponse{
 		Online:       true,
-		ActiveJob:    ActiveJob,
+		ActiveJob:    activeJobStr,
+		BatchProgress: batchProgressStr,
 		QueuedJobs:   QueuedJobs,
 		UpcomingJobs: upcoming,
 		DiskTotal:    globalTotalDisk,
