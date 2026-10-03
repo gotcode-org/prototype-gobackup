@@ -99,18 +99,48 @@ var jobListCmd = &cobra.Command{
 
 var jobRmCmd = &cobra.Command{
 	Use:   "rm [server] [name]",
-	Short: "Remove a job",
-	Args:  cobra.ExactArgs(2),
+	Short: "Remove a job (or all jobs for a server with -a)",
 	Run: func(cmd *cobra.Command, args []string) {
+		if len(args) < 1 || (len(args) < 2 && !jobRmAll) {
+			log.Fatalf("❌ Error: Must specify [server] and [name], or [server] -a")
+		}
+		
+		serverName := args[0]
+		
 		cfg := LoadClientConfig()
 		opts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})), grpc.WithPerRPCCredentials(tokenAuth{token: cfg.Token})}
 		conn, err := grpc.Dial(cfg.ServerAddress, opts...)
 		if err != nil { log.Fatalf("❌ Failed to connect: %v", err) }
 		defer conn.Close()
-		client := pb.NewAdminServiceClient(conn)
-		resp, err := client.RemoveJob(context.Background(), &pb.RemoveJobRequest{Server: args[0], Name: args[1]})
-		if err != nil { log.Fatalf("❌ RPC Error: %v", err) }
-		fmt.Printf("✅ %s\n", resp.Message)
+		
+		adminClient := pb.NewAdminServiceClient(conn)
+		backupClient := pb.NewBackupServiceClient(conn)
+		
+		if jobRmAll {
+			// Get all jobs for this server
+			listResp, err := backupClient.ListJobs(context.Background(), &pb.ListRequest{})
+			if err != nil { log.Fatalf("❌ RPC Error: %v", err) }
+			
+			count := 0
+			for _, j := range listResp.Jobs {
+				if j.Server == serverName {
+					_, err := adminClient.RemoveJob(context.Background(), &pb.RemoveJobRequest{Server: serverName, Name: j.Name})
+					if err != nil {
+						fmt.Printf("❌ Failed to remove job %s: %v\n", j.Name, err)
+					} else {
+						fmt.Printf("✅ Removed job %s from server %s\n", j.Name, serverName)
+						count++
+					}
+				}
+			}
+			if count == 0 {
+				fmt.Printf("⚠️ No jobs found for server %s\n", serverName)
+			}
+		} else {
+			resp, err := adminClient.RemoveJob(context.Background(), &pb.RemoveJobRequest{Server: serverName, Name: args[1]})
+			if err != nil { log.Fatalf("❌ RPC Error: %v", err) }
+			fmt.Printf("✅ %s\n", resp.Message)
+		}
 	},
 }
 
@@ -129,11 +159,13 @@ func init() {
 	jobAddCmd.Flags().StringVar(&jobHotPath, "hot-path", "", "Path to keep hot backups (overrides global backup_dir)")
 	jobRunCmd.Flags().BoolVar(&jobRunAttach, "attach", false, "Attach to the log stream immediately")
 	
+	jobRmCmd.Flags().BoolVarP(&jobRmAll, "all", "a", false, "Remove all jobs for the specified server")
 	jobCmd.AddCommand(jobAddCmd, jobListCmd, jobRmCmd, jobRunCmd)
 	rootCmd.AddCommand(jobCmd)
 }
 
 var jobRunAttach bool
+var jobRmAll bool
 var jobRunCmd = &cobra.Command{
 	Use:   "run [server] [name]",
 	Short: "Trigger backup jobs asynchronously",
