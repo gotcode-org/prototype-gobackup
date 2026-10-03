@@ -8,3 +8,7 @@
   - Run a pre-flight \`find /paths | wc -l` over SSH to get the total file count.
   - Enable verbose mode (`tar -cvzf`) so the remote server streams processed filenames to `stderr`.
   - Intercept the `stderr` stream in the daemon, count the lines as files complete, and broadcast a real-time `(processed/total) %` to both the TUI and the `gbctl status` active job response.
+- [ ] **Fluid Batch Progress Tracker**: Implement a secondary global progress bar for active cron batches.
+  - Track `BatchTotal` and `BatchCompleted` integers in the global queue state.
+  - Calculate overall progress dynamically: `((Completed * 100) + ActiveJob%) / Total`.
+  - Broadcast the output to the TUI and `gbctl status` formatted as: `Batch Progress: 62.5% Complete (2/4 Jobs Finished)`.
