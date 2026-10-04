@@ -114,6 +114,7 @@ type JobResult struct {
 	Status   string // "SUCCESS", "WARNING", "FAILED"
 	Error    string
 	Duration string
+	Size     string
 }
 
 var (
@@ -222,15 +223,15 @@ func ClearActive(cfg Config) {
 		for _, res := range BatchResults {
 			if res.Status == "SUCCESS" {
 				successCount++
-				desc += fmt.Sprintf("✅ **%s/%s** - %s\n", res.Server, res.Job, res.Duration)
+				desc += fmt.Sprintf("✅ **%s/%s** (%s) - %s\n", res.Server, res.Job, res.Size, res.Duration)
 			} else if res.Status == "WARNING" {
 				warnCount++
 				color = 0xF1C40F // Yellow
-				desc += fmt.Sprintf("⚠️ **%s/%s** - %s\n", res.Server, res.Job, res.Error)
+				desc += fmt.Sprintf("⚠️ **%s/%s** (%s) - %s\n", res.Server, res.Job, res.Size, res.Error)
 			} else {
 				failCount++
 				color = 0xFF0000 // Red
-				desc += fmt.Sprintf("❌ **%s/%s** - %s\n", res.Server, res.Job, res.Error)
+				desc += fmt.Sprintf("❌ **%s/%s** (%s) - %s\n", res.Server, res.Job, res.Size, res.Error)
 			}
 		}
 		
@@ -596,24 +597,26 @@ func executeBackupCommand(cfg Config, job JobConfig, srv ServerConfig, ui tui.Ba
 		}
 	}
 
+	var sizeStr string
+	if info, e := os.Stat(targetFile); e == nil {
+		sizeStr = fmt.Sprintf("%.2f MB", float64(info.Size())/1024.0/1024.0)
+	} else {
+		sizeStr = "0.00 MB"
+	}
+
 	if exitCode != 0 && exitCode != 1 {
-		pushJobResult(job.Server, job.Name, "FAILED", fmt.Sprintf("Exit Code: %d", exitCode), duration.String())
+		pushJobResult(job.Server, job.Name, "FAILED", fmt.Sprintf("Exit Code: %d", exitCode), duration.String(), sizeStr)
 
 		ui.Summary("   ❌ %s Backup fatally failed for %s/%s (Exit Code %d): %v", backupType, job.Server, job.Name, exitCode, err)
 		os.Remove(targetFile) 
 		return
 	}
-	
-	var sizeStr string
-	if info, e := os.Stat(targetFile); e == nil {
-		sizeStr = fmt.Sprintf("%.2f MB", float64(info.Size())/1024.0/1024.0)
-	}
 
 	if exitCode == 1 {
-		pushJobResult(job.Server, job.Name, "WARNING", "Files changed during run", duration.String())
+		pushJobResult(job.Server, job.Name, "WARNING", "Files changed during run", duration.String(), sizeStr)
 		ui.Summary("   ⚠️  %s Completed with warnings (files changed) for %s/%s (%s)", backupType, job.Server, job.Name, sizeStr)
 	} else {
-		pushJobResult(job.Server, job.Name, "SUCCESS", "", duration.String())
+		pushJobResult(job.Server, job.Name, "SUCCESS", "", duration.String(), sizeStr)
 		ui.Summary("   ✅ Success (%s)! Saved to %s (%s) in %s", backupType, targetFile, sizeStr, duration)
 	}
 }
@@ -812,7 +815,7 @@ func SendNotification(configs []NotificationConfig, title, desc string, color in
 }
 
 
-func pushJobResult(server, jobName, status, errMsg, duration string) {
+func pushJobResult(server, jobName, status, errMsg, duration, sizeStr string) {
 	StateMutex.Lock()
 	defer StateMutex.Unlock()
 	BatchResults = append(BatchResults, JobResult{
@@ -821,5 +824,6 @@ func pushJobResult(server, jobName, status, errMsg, duration string) {
 		Status: status,
 		Error: errMsg,
 		Duration: duration,
+		Size: sizeStr,
 	})
 }
