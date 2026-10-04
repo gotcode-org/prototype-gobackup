@@ -90,14 +90,14 @@ func GetStorageStats(cfg Config) ([]*pb.StorageStat, int64, int64, int64, int32,
 func FormatStorageStatsMarkdown(stats []*pb.StorageStat) string {
 	var sb strings.Builder
 	sb.WriteString("\n\n**Storage Telemetry**\n")
-	sb.WriteString("| Tier | Path | Archives | Used | Total | Free |\n")
-	sb.WriteString("|---|---|---|---|---|---|\n")
 
 	for _, s := range stats {
-		sb.WriteString(fmt.Sprintf("| %s | %s | %d | %s | %s | %s |\n",
-			s.Tier, s.Path, s.TotalBackups, formatSize(s.DiskUsed), formatSize(s.DiskTotal), formatSize(s.DiskFree)))
+		sb.WriteString(fmt.Sprintf("\n🗄️ **%s Storage** (\x60%s\x60)\n", s.Tier, s.Path))
+		sb.WriteString(fmt.Sprintf(" • Archives: %d\n", s.TotalBackups))
+		sb.WriteString(fmt.Sprintf(" • Used: %s\n", formatSize(s.DiskUsed)))
+		sb.WriteString(fmt.Sprintf(" • Free: %s / %s\n", formatSize(s.DiskFree), formatSize(s.DiskTotal)))
 	}
-
+	
 	return sb.String()
 }
 

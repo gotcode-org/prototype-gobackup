@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"compress/gzip"
 	"crypto/sha256"
 	"path/filepath"
 	"sort"
@@ -34,6 +35,40 @@ func (c *cmdLogger) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
+type progressWriter struct {
+	ui tui.BackupUI
+	totalBytes int64
+	processedBytes int64
+	jobStr string
+	lastUpdate int64
+}
+
+func (pw *progressWriter) Write(p []byte) (int, error) {
+	n := len(p)
+	pw.processedBytes += int64(n)
+	
+	// Update UI every ~5MB to keep it snappy, and always update on the first chunk
+	if pw.lastUpdate == 0 || pw.processedBytes - pw.lastUpdate > 5*1024*1024 || pw.processedBytes == pw.totalBytes {
+		pw.lastUpdate = pw.processedBytes
+		if pw.totalBytes > 0 {
+			percent := (float64(pw.processedBytes) / float64(pw.totalBytes)) * 100.0
+			if percent > 100.0 { percent = 100.0 }
+			statusStr := fmt.Sprintf("%s (%.1f%% Complete - %s / %s)", pw.jobStr, percent, formatSize(pw.processedBytes), formatSize(pw.totalBytes))
+			pw.ui.SetStatus(statusStr, true)
+			
+			StateMutex.Lock()
+			if ActiveJobStartTime.IsZero() {
+					ActiveJobStartTime = time.Now()
+				}
+				ActiveJob = statusStr
+			ActiveJobPercent = percent
+			StateMutex.Unlock()
+		}
+	}
+	return n, nil
+}
+
+
 
 
 
@@ -43,6 +78,8 @@ var GlobalBackupQueue sync.Mutex
 var (
 	StateMutex sync.Mutex
 	ActiveJob  string
+	ActiveJobPercent float64
+	ActiveJobStartTime time.Time
 	QueuedJobs []string
 )
 
@@ -159,12 +196,16 @@ func DequeueAndSetActive(host string) {
 		}
 	}
 	ActiveJob = host
+	ActiveJobPercent = 0.0
+	ActiveJobStartTime = time.Now()
 }
 
 func ClearActive(cfg Config) {
 	StateMutex.Lock()
 	defer StateMutex.Unlock()
 	ActiveJob = ""
+	ActiveJobPercent = 0.0
+	ActiveJobStartTime = time.Now()
 
 	if IsBatchActive && len(QueuedJobs) == 0 {
 		IsBatchActive = false
@@ -349,7 +390,7 @@ func RunSingleBackup(cfg Config, job JobConfig, ui tui.BackupUI, db *DB) {
 		}
 
 		var cmd *exec.Cmd
-		tarArgs := []string{"-cvzf", "-"}
+		tarArgs := []string{"-cf", "-"}
 		if job.Incremental {
 			tarArgs = append(tarArgs, "-g", fmt.Sprintf("/home/backup/.gobackup/snapshots/%s_%s.snar", job.Server, job.Name))
 		}
@@ -374,7 +415,30 @@ func RunSingleBackup(cfg Config, job JobConfig, ui tui.BackupUI, db *DB) {
 			cmd = exec.Command("ssh", args...)
 		}
 		
-		executeBackupCommand(cfg, job, srv, ui, cmd, targetFile, "SYSTEM", db)
+		jobStr := fmt.Sprintf("%s/%s", job.Server, job.Name)
+		
+		ui.Log("   📡 Pre-flight file count...")
+		findCmdStr := "du -scb " + strings.Join(job.Paths, " ") + " | tail -1 | awk '{print $1}'"
+		var totalFiles int64
+		var findCmd *exec.Cmd
+		if srv.Address == "localhost" || srv.Address == "127.0.0.1" || srv.Address == "local" {
+			findCmd = exec.Command("sh", "-c", findCmdStr)
+		} else {
+			if srv.UseSudo { findCmdStr = "sudo -n " + findCmdStr }
+			findArgs := []string{"-p", strconv.Itoa(srv.Port), srv.Address, findCmdStr}
+			findCmd = exec.Command("ssh", findArgs...)
+		}
+		if out, err := findCmd.Output(); err == nil {
+			lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+			lastLine := strings.TrimSpace(lines[len(lines)-1])
+
+			fmt.Sscanf(lastLine, "%d", &totalFiles)
+			ui.Log("   ✅ Total raw bytes to process: %d", totalFiles)
+		} else {
+			ui.Log("   ⚠️ Failed to count files: %v", err)
+		}
+
+		executeBackupCommand(cfg, job, srv, ui, cmd, targetFile, "SYSTEM", db, totalFiles, jobStr)
 	}
 
 	// 2. Docker Backups
@@ -408,9 +472,9 @@ func RunSingleBackup(cfg Config, job JobConfig, ui tui.BackupUI, db *DB) {
 		
 		dockerCmdStr := fmt.Sprintf("docker run --rm -v %s:/volume:ro ", vol)
 		if job.Incremental {
-			dockerCmdStr += fmt.Sprintf("-v /home/backup/.gobackup/snapshots:/snapshots debian:stable-slim tar -cvzf - -C /volume -g /snapshots/%s_%s_%s.snar .", job.Server, job.Name, vol)
+			dockerCmdStr += fmt.Sprintf("-v /home/backup/.gobackup/snapshots:/snapshots debian:stable-slim tar -cf - -C /volume -g /snapshots/%s_%s_%s.snar .", job.Server, job.Name, vol)
 		} else {
-			dockerCmdStr += "debian:stable-slim tar -cvzf - -C /volume ."
+			dockerCmdStr += "debian:stable-slim tar -cf - -C /volume ."
 		}
 		
 		if srv.UseSudo {
@@ -424,14 +488,36 @@ func RunSingleBackup(cfg Config, job JobConfig, ui tui.BackupUI, db *DB) {
 			cmd = exec.Command("ssh", args...)
 		}
 
-		executeBackupCommand(cfg, job, srv, ui, cmd, targetFile, fmt.Sprintf("DOCKER VOLUME (%s)", vol), db)
+		jobStr := fmt.Sprintf("%s/%s [%s]", job.Server, job.Name, vol)
+		
+		ui.Log("   📡 Pre-flight docker volume file count...")
+		findCmdStr := fmt.Sprintf("docker run --rm -v %s:/volume:ro debian:stable-slim du -sb /volume | awk '{print $1}'", vol)
+		var totalFiles int64
+		var findCmd *exec.Cmd
+		if srv.Address == "localhost" || srv.Address == "127.0.0.1" || srv.Address == "local" {
+			findCmd = exec.Command("sh", "-c", findCmdStr)
+		} else {
+			if srv.UseSudo { findCmdStr = "sudo -n " + findCmdStr }
+			findArgs := []string{"-p", strconv.Itoa(srv.Port), srv.Address, findCmdStr}
+			findCmd = exec.Command("ssh", findArgs...)
+		}
+		if out, err := findCmd.Output(); err == nil {
+			lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+			lastLine := strings.TrimSpace(lines[len(lines)-1])
+			fmt.Sscanf(lastLine, "%d", &totalFiles)
+			ui.Log("   ✅ Total raw bytes to process: %d", totalFiles)
+		} else {
+			ui.Log("   ⚠️ Failed to count docker files: %v", err)
+		}
+		
+		executeBackupCommand(cfg, job, srv, ui, cmd, targetFile, fmt.Sprintf("DOCKER VOLUME (%s)", vol), db, totalFiles, jobStr)
 	}
 	
 	// Prune just this host after it finishes
 	CleanupOldBackups(cfg, hotPath, []JobConfig{job}, ui, db)
 }
 
-func executeBackupCommand(cfg Config, job JobConfig, srv ServerConfig, ui tui.BackupUI, cmd *exec.Cmd, targetFile string, backupType string, db *DB) {
+func executeBackupCommand(cfg Config, job JobConfig, srv ServerConfig, ui tui.BackupUI, cmd *exec.Cmd, targetFile string, backupType string, db *DB, totalBytes int64, jobStr string) {
 	outFile, err := os.Create(targetFile)
 	if err != nil {
 		ui.Log("   ❌ Error creating local file: %v", err)
@@ -473,8 +559,13 @@ func executeBackupCommand(cfg Config, job JobConfig, srv ServerConfig, ui tui.Ba
 		hasher.Write([]byte(previousHash))
 	}
 	
-	cmd.Stdout = io.MultiWriter(outFile, hasher)
-	cmd.Stderr = &cmdLogger{ui: ui} 
+	// Local compression writer
+	gzipWriter := gzip.NewWriter(io.MultiWriter(outFile, hasher))
+	defer gzipWriter.Close() // Ensure the gzip trailer is written at the end
+
+	// The raw SSH stream flows through the ProgressWriter to measure uncompressed bytes, then into the local GZIP writer
+	cmd.Stdout = io.MultiWriter(&progressWriter{ui: ui, totalBytes: totalBytes, jobStr: jobStr}, gzipWriter)
+	cmd.Stderr = &cmdLogger{ui: ui}
 
 	
 	startTime := time.Now()
