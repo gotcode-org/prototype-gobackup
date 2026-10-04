@@ -25,6 +25,33 @@
 
 All notable changes to the GoBackup project will be documented in this file.
 
+## [2.1.0] - 2026-10-03
+### Added
+- **Storage Telemetry Injection**: Extended the notification dispatcher to
+  embed real-time global disk statistics directly into the Discord and Email
+  digests using a mobile-friendly stacked list format.
+- **Uncompressed Byte Streaming**: Restructured the remote backup engine to
+  bypass remote compression bottlenecks. The daemon now streams raw,
+  uncompressed I/O pipelines over SSH and dynamically delegates compression CPU
+  cycles to the central backup server via Go's native 'gzip.Writer'.
+- **Live Progress Bars**: Implemented a highly-engineered 'ProgressWriter' that
+  intercepts the raw byte stream, performs real-time file size calculations
+  using remote 'du -scb' scans, and generates a flawless, real-time percentage 
+  completion gauge.
+- **Fluid Batch Progress Tracker**: Developed a dynamic queue-state analyzer
+  that divides active cron batches into fractional slices, enabling a snappy,
+  continuous total completion percentage (e.g. '62.5% Complete (2/4 Jobs)').
+- **Live CLI Dashboard**: Completely replaced the heavy Bubble Tea TUI logger 
+  with a blazing fast 'gbctl status --watch' (or '-w') flag that transforms
+  the static status readout into a 1-second interval live dashboard.
+- **Elapsed Duration Timers**: Hooked the queue dispatcher to continuously
+  append live '[Elapsed: 1m30s]' tags to both the global batch progress and
+  the currently active server strings.
+
+### Removed
+- **TUI Log Streaming**: Completely removed the 'gbctl daemon attach' command
+  and the complex Bubble Tea TUI log pipe in favor of the clean CLI dashboard.
+
 ## [1.0.0] - 2026-09-25
 
 ### Added
