@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"strings"
+	"time"
 	pb "gobackup/internal/grpc/pb"
 )
 
@@ -19,6 +20,7 @@ var (
 	filterSystem bool
 	filterDocker bool
 	filterTier string
+	watchBackupList bool
 )
 
 var backupCmd = &cobra.Command{
@@ -31,7 +33,11 @@ var backupListCmd = &cobra.Command{
 	Short: "List backup archives",
 	Args:  cobra.MaximumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		req := &pb.ListBackupsRequest{Tier: strings.ToUpper(filterTier)}
+		for {
+			if watchBackupList {
+				fmt.Print("\033[H\033[2J")
+			}
+			req := &pb.ListBackupsRequest{Tier: strings.ToUpper(filterTier)}
 		var exactChain string
 		if len(args) == 1 {
 			if strings.HasSuffix(args[0], ".tar.gz") && strings.Contains(args[0], "_FULL_") {
@@ -95,6 +101,11 @@ var backupListCmd = &cobra.Command{
 			fmt.Fprintf(w, "[%s]\t%s\t%s\t%s\t%s\t%s\n", a.Tier, a.Server, a.Job, typeStr, dispName, formatSize(a.Size))
 		}
 		w.Flush()
+			if !watchBackupList {
+				break
+			}
+			time.Sleep(5 * time.Second)
+		}
 	},
 }
 
@@ -255,6 +266,7 @@ var backupRestoreCmd = &cobra.Command{
 }
 
 func init() {
+	backupListCmd.Flags().BoolVarP(&watchBackupList, "watch", "w", false, "Watch the backup list in real-time")
 	backupListCmd.Flags().BoolVar(&filterSystem, "system", false, "Filter to show only SYSTEM backups")
 	backupListCmd.Flags().BoolVar(&filterDocker, "docker", false, "Filter to show only DOCKER backups")
 	
