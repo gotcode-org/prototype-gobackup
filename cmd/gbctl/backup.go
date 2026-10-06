@@ -269,6 +269,7 @@ func init() {
 	backupListCmd.Flags().BoolVarP(&watchBackupList, "watch", "w", false, "Watch the backup list in real-time")
 	backupListCmd.Flags().BoolVar(&filterSystem, "system", false, "Filter to show only SYSTEM backups")
 	backupListCmd.Flags().BoolVar(&filterDocker, "docker", false, "Filter to show only DOCKER backups")
+	backupListCmd.Flags().StringVar(&filterTier, "tier", "", "Filter backups by storage tier (HOT or COLD)")
 	
 	backupCmd.AddCommand(backupListCmd, backupRmCmd, backupRestoreCmd, backupInfoCmd, backupValidateCmd)
 	backupRestoreCmd.Flags().StringVar(&targetPath, "target-path", "/home/backup/RESTORE", "Target directory to restore the backup into")
