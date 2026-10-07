@@ -672,7 +672,40 @@ func (s *Server) RemoveJob(ctx context.Context, req *pb.RemoveJobRequest) (*pb.G
 
 func (s *Server) RemoveBackup(ctx context.Context, req *pb.RemoveBackupRequest) (*pb.GenericResponse, error) {
 	var foundPath string
-	dirs := []string{s.cfg.BackupDir, filepath.Join(s.cfg.BackupDir, "docker-volume")}
+	
+	var dirs []string
+	addedPaths := make(map[string]bool)
+
+	// Global Hot
+	dirs = append(dirs, s.cfg.BackupDir)
+	dirs = append(dirs, filepath.Join(s.cfg.BackupDir, "docker-volume"))
+	addedPaths[s.cfg.BackupDir] = true
+
+	// Global Cold
+	if s.cfg.ColdStoragePath != "" {
+		dirs = append(dirs, s.cfg.ColdStoragePath)
+		dirs = append(dirs, filepath.Join(s.cfg.ColdStoragePath, "docker-volume"))
+		addedPaths[s.cfg.ColdStoragePath] = true
+	}
+
+	for _, job := range s.cfg.Jobs {
+		// Hot paths
+		hotPathStr := job.HotStoragePath
+		if hotPathStr != "" && !addedPaths[hotPathStr] {
+			dirs = append(dirs, hotPathStr)
+			dirs = append(dirs, filepath.Join(hotPathStr, "docker-volume"))
+			addedPaths[hotPathStr] = true
+		}
+
+		// Cold paths
+		coldPathStr := job.ColdStorage.Path
+		if coldPathStr == "" { coldPathStr = s.cfg.ColdStoragePath }
+		if coldPathStr != "" && !addedPaths[coldPathStr] {
+			dirs = append(dirs, coldPathStr)
+			dirs = append(dirs, filepath.Join(coldPathStr, "docker-volume"))
+			addedPaths[coldPathStr] = true
+		}
+	}
 	for _, d := range dirs {
 		if _, err := os.Stat(filepath.Join(d, req.Filename)); err == nil {
 			foundPath = d
